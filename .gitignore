@@ -44,10 +44,16 @@ output/
 *.xlsx
 *.csv
 *.json
-*.md
 *.pdf
 *.docx
 *.html
+
+# 保留根目录的文档文件
+!README.md
+!README_en.md
+!CONTRIBUTING.md
+!LICENSE
+!SKILL.md
 
 # 临时文件
 *.log
