@@ -5,6 +5,7 @@ Analyzers Module
 数据分析和建模模块：
 - MarketAnalyzer: 市场分析
 - TikTokAnalyzer: TikTok 传播分析
+- SupplierCostAnalyzer: 1688 供应商成本分析
 - ProfitModelBuilder: 利润模型构建
 """
 
@@ -205,12 +206,88 @@ class TikTokAnalyzer:
         ]
 
 
+class SupplierCostAnalyzer:
+    """1688 供应商成本分析器"""
+
+    def __init__(self, data: dict):
+        self.data = data
+        self.supplier_data = data.get("supplier", [])
+
+    def analyze(self) -> Dict:
+        valid_items = self._valid_items()
+        costs = self._cost_values(valid_items)
+
+        return {
+            "valid_supplier_count": len(valid_items),
+            "cost_summary": self._summarize_costs(costs),
+            "top_suppliers": valid_items[:10],
+            "stability_score": self._calculate_stability_score(valid_items, costs),
+            "warnings": self._build_warnings(valid_items),
+        }
+
+    def _valid_items(self) -> List[Dict]:
+        return [
+            item for item in self.supplier_data
+            if item.get("price_min_rmb") and item.get("title")
+        ]
+
+    def _cost_values(self, items: List[Dict]) -> List[float]:
+        costs = []
+        for item in items:
+            low = item.get("price_min_rmb")
+            high = item.get("price_max_rmb") or low
+            if low:
+                costs.append((low + high) / 2)
+        return sorted(costs)
+
+    def _summarize_costs(self, costs: List[float]) -> Dict:
+        if not costs:
+            return {
+                "low_cost_rmb": None,
+                "median_cost_rmb": None,
+                "high_cost_rmb": None,
+            }
+
+        return {
+            "low_cost_rmb": min(costs),
+            "median_cost_rmb": costs[len(costs) // 2],
+            "high_cost_rmb": max(costs),
+        }
+
+    def _calculate_stability_score(self, items: List[Dict], costs: List[float]) -> float:
+        if not items:
+            return 0.0
+
+        supplier_count_score = min(len(items) / 10, 1.0)
+        avg_rating = sum(i.get("rating") or 0 for i in items) / len(items)
+        rating_score = min(avg_rating / 5, 1.0) if avg_rating else 0.5
+        avg_years = sum(i.get("supplier_years") or 0 for i in items) / len(items)
+        years_score = min(avg_years / 5, 1.0) if avg_years else 0.5
+
+        if len(costs) >= 2 and max(costs) > 0:
+            dispersion = (max(costs) - min(costs)) / max(costs)
+            price_score = max(0.0, 1 - dispersion)
+        else:
+            price_score = 0.5
+
+        return round((supplier_count_score * 0.35 + rating_score * 0.25 + years_score * 0.20 + price_score * 0.20), 2)
+
+    def _build_warnings(self, items: List[Dict]) -> List[str]:
+        warnings = []
+        if len(items) < 5:
+            warnings.append("1688 有效供应商少于 5 个，供应链数据不足，需要人工复核")
+        if any(item.get("note") for item in self.supplier_data):
+            warnings.append("未配置或未成功调用 1688 Apify Actor，报告不能使用虚构成本")
+        return warnings
+
+
 class ProfitModelBuilder:
     """利润模型构建器"""
 
     def __init__(self, data: dict):
         self.data = data
         self.config = PROFIT_CONFIG
+        self.supplier_analysis = data.get("analysis", {}).get("supplier", {})
 
     def build(self) -> Dict:
         """
@@ -222,6 +299,7 @@ class ProfitModelBuilder:
         return {
             "cost_structure": self._calculate_cost_structure(),
             "pricing_tiers": self._calculate_pricing_tiers(),
+            "supplier_cost": self.supplier_analysis.get("cost_summary", {}),
             "profit_analysis": self._analyze_profits(),
             "recommendations": self._generate_recommendations(),
         }
@@ -236,8 +314,9 @@ class ProfitModelBuilder:
         Returns:
             成本结构
         """
+        product_cost = self._get_product_cost_usd()
         cogs = (
-            self.config["product_cost"]
+            product_cost
             + self.config["shipping_cost"]
             + self.config["packaging_cost"]
         )
@@ -253,6 +332,7 @@ class ProfitModelBuilder:
 
         return {
             "sale_price": sale_price,
+            "product_cost": product_cost,
             "cogs": cogs,
             "platform_fee": platform_fee,
             "fba_fee": fba_fee,
@@ -306,6 +386,15 @@ class ProfitModelBuilder:
             if cost_analysis["net_margin"] >= self.config["min_margin"]:
                 return price
         return 100
+
+    def _get_product_cost_usd(self) -> float:
+        median_cost_rmb = self.supplier_analysis.get("cost_summary", {}).get("median_cost_rmb")
+        if not median_cost_rmb:
+            return self.config["product_cost"]
+
+        # Conservative default for planning when no live FX integration is configured.
+        rmb_usd_rate = 7.2
+        return median_cost_rmb / rmb_usd_rate
 
     def _generate_recommendations(self) -> List[str]:
         """生成利润优化建议"""

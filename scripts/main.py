@@ -19,13 +19,18 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # 添加当前目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import CONFIG
 from input_parser import parse_input
 from data_collector import DataCollector
-from analyzer import MarketAnalyzer, TikTokAnalyzer, ProfitModelBuilder
+from analyzer import MarketAnalyzer, TikTokAnalyzer, SupplierCostAnalyzer, ProfitModelBuilder
 from report_generator import ReportGenerator
 
 
@@ -52,6 +57,7 @@ class ProductResearchPipeline:
                 "generated_at": datetime.now().isoformat(),
             },
             "amazon": [],
+            "supplier": [],
             "tiktok": [],
             "market": {},
             "analysis": {},
@@ -92,6 +98,10 @@ class ProductResearchPipeline:
         print("   ├─ 采集 Amazon 商品数据...")
         self.data["amazon"] = collector.fetch_amazon_products(self.keywords)
 
+        # 采集 1688 供应商成本数据
+        print("   ├─ 采集 1688 供应商成本数据...")
+        self.data["supplier"] = collector.fetch_supplier_costs(self.category, self.keywords)
+
         # 采集 TikTok 数据
         print("   ├─ 采集 TikTok 流量数据...")
         self.data["tiktok"] = collector.fetch_tiktok_data(self.keywords)
@@ -101,6 +111,7 @@ class ProductResearchPipeline:
         self.data["market"] = collector.fetch_market_data(self.category)
 
         print(f"   ✅ 采集完成: {len(self.data['amazon'])} 个商品, "
+              f"{len(self.data['supplier'])} 条 1688 供应商数据, "
               f"{len(self.data['tiktok'])} 条 TikTok 数据")
 
     def _analyze_data(self):
@@ -116,6 +127,11 @@ class ProductResearchPipeline:
         print("   ├─ 分析 TikTok 传播潜力...")
         tiktok_analyzer = TikTokAnalyzer(self.data)
         self.data["analysis"]["tiktok"] = tiktok_analyzer.analyze()
+
+        # 1688 供应链分析
+        print("   ├─ 分析 1688 供应链成本...")
+        supplier_analyzer = SupplierCostAnalyzer(self.data)
+        self.data["analysis"]["supplier"] = supplier_analyzer.analyze()
 
         # 利润建模
         print("   └─ 构建利润模型...")
@@ -147,6 +163,7 @@ def main():
 
 环境变量:
   APIFY_API_TOKEN    - Apify API Token (必需)
+  APIFY_1688_ACTOR_ID - 1688 供应商采集 Actor ID (推荐)
   DEFAULT_MARKET     - 默认市场 (默认: US)
   OUTPUT_FORMAT      - 输出格式 (默认: markdown)
   MAX_PRODUCTS       - 最大采集数量 (默认: 100)

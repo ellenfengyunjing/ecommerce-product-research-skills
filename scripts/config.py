@@ -24,6 +24,7 @@ if env_path.exists():
 
 # API 配置
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
+APIFY_1688_ACTOR_ID = os.getenv("APIFY_1688_ACTOR_ID", "")
 
 # 市场配置
 DEFAULT_MARKET = os.getenv("DEFAULT_MARKET", "US")
@@ -38,6 +39,7 @@ SUPPORTED_MARKETS = {
     "CA": {"domain": "amazon.ca", "currency": "CAD", "locale": "en-CA"},
     "AU": {"domain": "amazon.com.au", "currency": "AUD", "locale": "en-AU"},
 }
+MARKET_MAP = SUPPORTED_MARKETS
 
 # 输出配置
 OUTPUT_FORMAT = os.getenv("OUTPUT_FORMAT", "markdown")
@@ -105,6 +107,20 @@ TIKTOK_CONFIG = {
 }
 
 # ============================================================
+# 1688 供应商成本配置
+# ============================================================
+
+SUPPLIER_CONFIG = {
+    "enabled": os.getenv("SUPPLIER_COST_SOURCE", "1688").lower() == "1688",
+    "source": os.getenv("SUPPLIER_COST_SOURCE", "1688"),
+    "apify_actor_id": APIFY_1688_ACTOR_ID,
+    "keywords_max": int(os.getenv("SUPPLIER_KEYWORDS_MAX", "8")),
+    "results_per_keyword": int(os.getenv("SUPPLIER_RESULTS_PER_KEYWORD", "20")),
+    "rmb_usd_rate": os.getenv("RMB_USD_RATE", "auto"),
+    "min_valid_suppliers": 5,
+}
+
+# ============================================================
 # 利润模型配置
 # ============================================================
 
@@ -165,6 +181,10 @@ SELECTION_CRITERIA = {
         "min": 4.0,                # 评分 > 4.0
         "weight": 0.15,
     },
+    "supplier_stability": {
+        "min_valid_suppliers": 5,
+        "weight": 0.15,
+    },
 }
 
 # ============================================================
@@ -179,6 +199,7 @@ REPORT_CONFIG = {
         "demand_analysis",
         "competition_analysis",
         "tiktok_validation",
+        "supplier_cost_validation",
         "profit_model",
         "product_matrix",
         "execution_plan",
@@ -218,6 +239,9 @@ CONFIG = {
 
     # TikTok
     "tiktok": TIKTOK_CONFIG,
+
+    # 1688 供应商成本
+    "supplier": SUPPLIER_CONFIG,
 
     # 利润
     "profit": PROFIT_CONFIG,

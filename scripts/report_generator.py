@@ -195,6 +195,9 @@ class ReportGenerator:
         # TikTok 验证
         lines.extend(self._build_tiktok_section(analysis))
 
+        # 1688 供应商成本
+        lines.extend(self._build_supplier_section(analysis))
+
         # 利润模型
         lines.extend(self._build_profit_section(analysis))
 
@@ -225,7 +228,7 @@ class ReportGenerator:
 
         # 推荐定价
         if profit_analysis:
-            recommended = profit_analysis.get("recommendations", {}).get("recommended_tier", {})
+            recommended = profit_analysis.get("profit_analysis", {}).get("recommended_tier", {})
             if recommended:
                 lines.append("### 💰 推荐定价方案")
                 lines.append("")
@@ -237,6 +240,52 @@ class ReportGenerator:
         lines.append("---")
         lines.append("")
 
+        return lines
+
+    def _build_supplier_section(self, analysis: Dict) -> list:
+        """构建 1688 供应商成本章节"""
+        lines = []
+        lines.append("## 🏭 1688 供应商成本与供应链验证")
+        lines.append("")
+
+        supplier_analysis = analysis.get("supplier", {})
+        cost_summary = supplier_analysis.get("cost_summary", {})
+        top_suppliers = supplier_analysis.get("top_suppliers", [])
+        warnings = supplier_analysis.get("warnings", [])
+
+        lines.append(f"- **有效供应商数量:** {supplier_analysis.get('valid_supplier_count', 0)}")
+        lines.append(f"- **供应链稳定评分:** {supplier_analysis.get('stability_score', 0)}/1.0")
+        lines.append(f"- **低位成本:** ¥{cost_summary.get('low_cost_rmb') or 'N/A'}")
+        lines.append(f"- **中位成本:** ¥{cost_summary.get('median_cost_rmb') or 'N/A'}")
+        lines.append(f"- **高位成本:** ¥{cost_summary.get('high_cost_rmb') or 'N/A'}")
+        lines.append("")
+
+        if warnings:
+            lines.append("### 风险提示")
+            lines.append("")
+            for warning in warnings:
+                lines.append(f"- {warning}")
+            lines.append("")
+
+        if top_suppliers:
+            lines.append("### 候选供应商样本")
+            lines.append("")
+            lines.append("| 关键词 | 商品 | 供应商 | 价格区间 | MOQ | 评分 | 链接 |")
+            lines.append("|--------|------|--------|----------|-----|------|------|")
+            for item in top_suppliers[:10]:
+                price_min = item.get("price_min_rmb") or "N/A"
+                price_max = item.get("price_max_rmb") or "N/A"
+                url = item.get("product_url") or ""
+                link = f"[查看]({url})" if url else "N/A"
+                lines.append(
+                    f"| {item.get('keyword', '')} | {item.get('title', '')[:30]} | "
+                    f"{item.get('supplier_name', '')} | ¥{price_min}-¥{price_max} | "
+                    f"{item.get('moq') or 'N/A'} | {item.get('rating') or 'N/A'} | {link} |"
+                )
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
         return lines
 
     def _build_market_section(self, analysis: Dict) -> list:

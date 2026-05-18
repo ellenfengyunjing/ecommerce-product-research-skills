@@ -9,9 +9,10 @@
 ## ✨ 核心特性
 
 - **🚀 一键启动**：只需输入「市场 + 类目」，自动完成全流程
-- **📊 多源数据采集**：Amazon + TikTok + Google Trends + 市场报告
+- **📊 多源数据采集**：Amazon + 1688供应商 + TikTok + Google Trends + 市场报告
 - **🧠 智能分析**：基于精细化选品方法论，自动识别蓝海市场
-- **💰 利润建模**：自动计算毛利率、净利率、成本结构
+- **🏭 供应链成本校准**：通过 Apify 采集 1688 商品/供应商报价，校准真实成本、MOQ 和供应商稳定性
+- **💰 利润建模**：自动计算毛利率、净利率、成本结构，并使用 1688 中位成本做敏感性分析
 - **📝 专业报告**：生成完整的选品调研分析报告
 
 ---
@@ -32,6 +33,7 @@
 | 品牌集中度 | <30% | 市场分散，机会均等 |
 | CPC | <$1 | 广告成本可控 |
 | 利润率 | >30% | 可持续盈利 |
+| 供应链稳定 | 评分>4.0 | 结合 1688 供应商数量、MOQ、报价离散度、成交量/复购率 |
 
 ---
 
@@ -57,6 +59,10 @@
 │ apify-amazon-    │  │ market-          │  │ tiktok-         │
 │ scraper          │  │ intelligence     │  │ analytics       │
 │ Apify API采集     │  │ 市场情报分析      │  │ TikTok流量分析  │
+│                  │  │                  │  │                 │
+│ apify-1688-      │  │ supply-chain     │  │                 │
+│ supplier data    │  │ validation       │  │                 │
+│ 1688供应商成本    │  │ 供应链验证        │  │                 │
 │                  │  │                  │  │                 │
 │ apify-market-    │  │                  │  │                 │
 │ scraper          │  │                  │  │                 │
@@ -94,6 +100,13 @@ cp .env.example .env
 ```bash
 # Apify API (用于数据采集)
 APIFY_API_TOKEN=your-apify-token-here
+
+# 1688 供应商成本采集（推荐）
+APIFY_1688_ACTOR_ID=your-1688-actor-id
+SUPPLIER_COST_SOURCE=1688
+SUPPLIER_KEYWORDS_MAX=8
+SUPPLIER_RESULTS_PER_KEYWORD=20
+RMB_USD_RATE=auto
 
 # 可选：其他 API 配置
 GOOGLE_TRENDS_COUNTRY=US
@@ -161,6 +174,7 @@ amazon-product-researcher/
 | 数据源 | 类型 | 说明 |
 |--------|------|------|
 | Amazon | 商品数据 | BSR排名、评论、价格、评分 |
+| 1688 | 供应商成本 | 商品报价、价格区间、MOQ、成交量、供应商年限、评分、复购率 |
 | TikTok | 流量数据 | 标签播放量、爆款视频、达人 |
 | Google Trends | 趋势数据 | 搜索热度、季节性 |
 | Grand View Research | 市场报告 | 市场规模、CAGR |
