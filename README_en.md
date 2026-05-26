@@ -9,9 +9,10 @@
 ## ✨ Features
 
 - **🚀 One-Click Start**: Just input "Market + Category", auto-complete the full process
-- **📊 Multi-Source Data Collection**: Amazon + TikTok + Google Trends + Market Reports
+- **📊 Multi-Source Data Collection**: Amazon + 1688 suppliers + TikTok + Google Trends + Market Reports
 - **🧠 Intelligent Analysis**: Based on refined product selection methodology, automatically identify blue ocean markets
-- **💰 Profit Modeling**: Automatically calculate gross margin, net margin, cost structure
+- **🏭 Supply Cost Calibration**: Use Apify-powered 1688 supplier data to validate unit cost, MOQ, and supply stability
+- **💰 Profit Modeling**: Automatically calculate gross margin, net margin, cost structure, and sensitivity ranges from 1688 median supplier cost
 - **📝 Professional Reports**: Generate complete product research analysis reports
 
 ---
@@ -33,6 +34,7 @@ Market Analysis → Demand Discovery → Competition Analysis → Profit Assessm
 | Brand Concentration | <30% | Scattered market, equal opportunities |
 | CPC | <$1 | Controllable advertising costs |
 | Profit Margin | >30% | Sustainable profitability |
+| Supply Chain Stability | Rating >4.0 | Based on 1688 supplier count, MOQ, price dispersion, transaction volume, and repurchase signals |
 
 ---
 
@@ -59,6 +61,13 @@ Edit the `.env` file:
 ```bash
 # Apify API (for data collection)
 APIFY_API_TOKEN=your-apify-token-here
+
+# 1688 supplier cost collection (recommended)
+APIFY_1688_ACTOR_ID=your-1688-actor-id
+SUPPLIER_COST_SOURCE=1688
+SUPPLIER_KEYWORDS_MAX=8
+SUPPLIER_RESULTS_PER_KEYWORD=20
+RMB_USD_RATE=auto
 ```
 
 ### 3. Run Product Research
