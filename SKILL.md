@@ -19,23 +19,51 @@ description: |
   - 🛡️ 研发壁垒构建
   - 📋 90天执行路线图
   - ⚠️ "为什么不选"风险消除机制
+  - ✅ Apify First 数据采集：Reddit / Google Trends / 1688 / 市场报告等优先创建或复用 Apify Actor，失败才 Web Search 兜底
+  - ✅ 数据真实性硬约束：无法采集或无法验证的数据不进入报告主体，不参与评分，不捏造
 
   拆市场 → 找需求 → 消费者画像 → 五维交叉验证 → 容量筛选 → 生命周期定位 → 竞争对标 → 痛点挖掘 → 供应链验证 → 利润建模 → 研发壁垒 → 产品矩阵 → 执行路径 → 为什么选/为什么不选
 ---
 
-# 🛒 Amazon Product Research Toolkit v3.1
+# 🛒 Amazon Product Research Toolkit v3.5
 
 ## 核心入口 Skill
 
-> **输入市场 + 类目，自动生成16章深度选品调研报告，覆盖 7 大数据源，含消费者画像、生命周期定位、五维交叉验证、研发壁垒、90天执行路线图、"为什么不选"风险评估**
+> **输入市场 + 类目，自动产出「双产物」：产物一 = 包含标准化分表、原始字段明细和数据血缘的全面可溯源 Excel 总表；产物二 = 基于该数据的 16 章 + 落地建议 HTML 深度分析报告。覆盖 7 大数据源，含消费者画像、生命周期定位、五维交叉验证、研发壁垒、90天执行路线图、"为什么不选"风险评估。**
 
-### v3.1 更新 (2026-05-26)
-- ✅ **Apify 采集已修复**: Amazon Product/Reviews/TikTok 三个 Actor 已验证可用
-- ✅ 修复 Actor 参数: `categoryUrls` (非 `searchUrls`)
-- ✅ 增加轮询兜底机制: `wait_for_finish` 超时后自动轮询至完成
-- ⚠️ Reddit/1688: 无免费 Apify Actor → 由 Web Search 补充
-- ⚠️ Market Report: apify/web-scraper 需审批 → 由 Web Search/Web Fetch 补充
-- 数据采集原则: Apify优先 → 失败不mock → Web Search兜底
+### v3.5 采集路由与交付规则 (2026-07-17)
+
+- **Amazon 脚本优先**：Amazon 商品与可由脚本取得的评论字段必须先运行 `amazon-product-scraper`；仅在报错、限流/验证码、有效样本不足或核心字段缺失时，才用 Amazon Apify Actor 定向补采。
+- **其他平台 Apify 优先**：TikTok、Reddit、1688、Google Trends、市场报告等默认使用 `APIFY_API_TOKEN` 调用对应 Actor；Actor 不可用或结果缺口时才使用 Web Search/Web Fetch 补充。
+- **最低有效样本量**：Amazon 商品 ≥50 条（默认 100）；TikTok 去重后原始视频 ≥50 条；Reddit 可追溯帖子/评论 ≥20 条；1688 有报价的供应商/商品记录 ≥20 条。用户未指定数量时使用系统默认值；指定值低于硬下限时自动提升到下限。
+- **Google Trends 双交付**：必须保存类目核心关键词的趋势截图，同时保存最近 6 个月的时间序列数据；截图路径/URL写入 Excel 和 lineage。
+- **Excel 总表先行**：所有原始记录、可用字段、采集参数、Actor/脚本名、Run/Dataset ID、采集时间和来源 URL 必须先写入一个 Excel 工作簿，再生成独立 HTML 报告。
+- **缺失数据静默隐藏**：HTML 只展示有真实数据支撑的章节、KPI、图表和结论；不伪造数据，不显示空占位章节。
+
+### v3.4 双产物工作流更新 (2026-07-09)
+
+- ✅ **双产物彻底分离**：采集数据（产物一 Excel）与可视化分析（产物二 HTML）是两套独立交付物。HTML 报告的所有数字必须来自 Excel / `raw_data.json`，禁止凭空生成。
+- ✅ **分平台路由**：Amazon 固定为 `amazon-product-scraper` 优先、Amazon Apify 补缺；其他平台固定为 Apify Actor 优先、Web Search/Web Fetch 兜底。
+- ✅ **Excel 来源链接**：每个工作表的每一行都带「来源链接」列（超链接），方便人工逐条核对真实性。
+- ✅ **平台额度落地**：Amazon 默认 100、硬下限 50；TikTok 去重原始视频 ≥50；1688 有效报价 ≥20；Reddit 可追溯样本 ≥20；Google Trends 交付最近 6 个月数据与截图。
+- ✅ **报告结尾落地建议**：必须给出「跟品 / 改品 / 开新品」决策 + 差异化点 + 定价/利润/成本 + 推广路径（聚焦 1688 采集品类）。
+- ✅ **真实性硬约束不变**：不 mock、不捏造；无法采集/无法验证的数据不进入结论，采集失败只记录在内部日志或原始数据目录。
+
+### v3.2 更新 (2026-06-04)
+- ✅ **产品文生图提示词**: 最终“建议做的产品列表 / 差异化选品与产品矩阵”中，每个推荐产品必须输出 `文生图提示词`，便于后续直接调用生图模型生成产品图。
+- ✅ **Amazon 本地优先 + Apify First**: Amazon 商品和差评优先使用 `amazon-product-scraper`；TikTok、Reddit、Google Trends、1688、市场报告/网页资料等平台优先创建或复用 Apify Actor 采集。
+- ✅ **Web Search 仅作兜底**: 只有当 Apify Actor 不存在、权限不足、运行失败、目标站点禁止采集或数据字段明显不完整时，才使用 Web Search/Web Fetch 补充公开信息。
+- ✅ **真实性硬约束**: 不得 mock、不捏造、不用示例数据填空；无法采集或无法验证的数据不进入结论、不显示在报告主体中。
+- ✅ **HTML 报告优先**: 默认最终交付为 HTML 可视化深度报告；除非用户明确要求，否则 Markdown/PDF/Excel 仅作为辅助材料。
+- ✅ **深度方法论强制执行**: 每次分析必须覆盖本 Skill 定义的多维度方法论与 16 章框架；没有真实数据支撑的章节、图表和评分项在最终报告中自动隐藏。
+- ✅ 保留 Apify 轮询兜底机制: `wait_for_finish` 超时后自动轮询至完成，并记录 Actor、Run ID、采集时间和样本量。
+
+### v3.3 优化规则 (2026-06-17)
+- ✅ **Amazon 低成本优先**: Amazon 商品、BSR、价格、评分、评论数、五点描述、图片、差评优先调用 `amazon-product-scraper`；只有本地 scraper 采不到关键字段、遇到限流/验证码、或需要其不支持的字段时，才调用 `apify-amazon-scraper` 补缺，减少 Apify API 消耗。
+- ✅ **单平台单 Actor Run 原则**: 每个平台默认只发起 1 次采集任务，使用单个核心关键词或单个类目完成该平台本轮采集；同平台不得为了相近关键词重复开多个 Actor。只有首轮数据样本不足或字段缺失时，才允许追加 1 个 Actor Run，并记录追加原因。
+- ✅ **跨源采集顺序固定**: Amazon 本地 scraper → Amazon Apify 补缺 → 其他平台 Apify Actor（TikTok/Reddit/Google Trends/1688/市场报告）→ Web Search/Web Fetch 兜底。
+- ✅ **最终报告静默过滤缺失数据**: 报错、空表、占位符、未采集字段、无法验证数据不进入最终报告，也不以“未获取/失败/暂无数据”等提示展示；采集失败只记录在内部采集日志或原始数据目录。
+- ✅ **逐章来源标注**: 最终报告每个可见板块都必须列出本板块实际使用的数据来源；来源必须包含平台、采集方式、Actor/脚本名、采集时间、样本量或 URL。
 
 ---
 
@@ -84,30 +112,73 @@ input_parser = {
 }
 ```
 
-### Step 2: 7 大数据源全量采集 (全部使用 Apify API)
+### Step 2: 7 大数据源全量采集 (Amazon Scraper + Apify First)
+
+**采集优先级必须固定为：**
+1. Amazon 数据优先调用 `amazon-product-scraper`，一次采集单个核心关键词或单个 Amazon 类目下的 Top 商品和差评；本地 scraper 成功时不得再重复调用 Amazon Apify。
+2. Amazon 本地 scraper 采集失败、字段明显缺失、样本量不足，或用户明确需要本地 scraper 不支持的字段时，才调用 `apify-amazon-scraper` 对缺口字段补采。
+3. TikTok、Reddit、Google Trends、1688、市场报告/公开网页等平台优先复用已验证的 Apify Actor。每个平台默认只启动 1 个 Actor Run，并尽量使用 1 个主关键词或 1 个类目完成本轮采集。
+4. 如果单个 Actor Run 的数据不完整，先复查参数、字段映射、样本量和 dataset；确认缺口后才允许追加新的 Actor Run，且必须记录追加原因。
+5. 只有 Apify Actor 不存在、权限/API 配额不足、运行失败、目标站点无法采集或关键字段缺失时，才使用 Web Search/Web Fetch 从权威公开网页兜底。
+6. 如果所有采集方式都无法取得可验证数据，则报告主体不显示该数据项，相关指标不得参与评分、图表和结论。
+
+**数据准入标准：**每条进入报告的数据必须有来源、采集时间、采集方式、样本量或 URL；没有 lineage 的数据一律不得使用。
+
+### 平台采集额度与产物一 Excel 数据层
+
+**各平台采集额度（最低要求，优先 Apify）：**
+
+| 平台 | 默认额度 / 指标 | 来源方式 | 备注 |
+|------|----------------|----------|------|
+| Amazon | **默认 100 条，有效商品硬下限 50 条**；差评应覆盖核心竞品，含标题/正文/评分/日期/已验证购买 | `amazon-product-scraper` 优先 → `apify-amazon-scraper` 定向补缺 | 有效商品指去重后含 ASIN/标题/来源的记录；差评需回指 ASIN |
+| TikTok | **默认且硬下限 50 条去重原始视频**，保留视频 URL/作者/文案/标签/播放/点赞/评论/分享/发布时间；另采 TikTok Shop 销量/GMV/价格/店铺 | Apify TikTok Scraper + TikTok Shop Actor 优先 → Web Search 兜底 | 视频级原始数据与 Shop 商品分表留存，不能只保留 1 条标签汇总 |
+| Reddit | **默认且硬下限 20 条可追溯帖子/评论**（含子版块/标题/正文/情绪/时间/url） | Apify Reddit Actor 优先 → Web Search 兜底 | 样本必须与类目相关且 URL 可核验，禁止编造 |
+| 1688 | **默认且硬下限 20 条有效供应商/报价记录**（商品、供应商、阶梯价、MOQ、评分、复购率、地区、交付能力） | Apify 1688 Actor 优先 → Web Search 兜底 | “有效”指至少包含报价和来源 URL，每行可追溯 |
+| Google Trends | 类目主关键词 **最近 6 个月时间序列 + 趋势截图** | Apify Google Trends/Serp Actor 优先 → Web Search/Web Fetch 兜底；截图可使用 Actor snapshot 或渲染页面导出 | 保留日/周原始粒度，可另生成月度汇总；PNG 路径/URL 写入 Excel |
+
+**数量验收门（必须在生成报告前执行）：**
+
+1. 按平台主键去重：Amazon=`ASIN`，TikTok=`video_url/video_id`，Reddit=`post/comment URL`，1688=`offer_id/商品 URL + 供应商`。
+2. 只计算具有核心字段和可追溯来源的有效记录，以实际落盘条数而非请求的 `maxItems` 作为验收依据。
+3. 低于下限时，先检查首轮 dataset/参数；Amazon 转 Apify 定向补采，其他平台允许追加 1 次 Apify 补采，仍不足再用 Web Search 补充。
+4. 所有补采、降级和未达标原因写入内部采集日志与 Excel `Data_Lineage`；不得伪造记录凑数。
+
+> ⚠️ **产物一（Excel）是数据层，必须先于产物二（HTML）产出。**
+> 采集阶段必须把每个平台的原始数据持久化为 `raw_data.json`，并通过
+> `python scripts/excel_exporter.py --input raw_data.json --output <市场>_<类目>_采集数据.xlsx`
+> 导出为带「来源链接」超链接的多工作表 Excel。HTML 报告的所有数字必须回指这份 Excel，
+> 保证"报告数据 = 采集数据"，便于人工逐条核对真实性。
 
 ```
-📊 apify-amazon-scraper
-   └─→ 采集 Amazon BSR Top 100 商品数据（标题/ASIN/价格/评分/评论数/BSR/五点描述/图片）
+📊 amazon-product-scraper (Amazon 首选)
+   └─→ 低成本采集 Amazon BSR Top 100 商品数据（标题/ASIN/价格/评分/评论数/BSR/五点描述/图片/商品链接）
 
-⭐ apify-amazon-scraper (Review Mode)
+⭐ amazon-product-scraper (Review Mode)
+   └─→ 低成本采集竞品差评（1-2星评论），提取用户痛点关键词和频率
+
+📊 apify-amazon-scraper (Amazon 补缺)
+   └─→ 仅在本地 scraper 失败、字段缺失或需要额外字段时补采 Amazon 数据
+
+⭐ apify-amazon-scraper (Review 补缺)
    └─→ 采集竞品差评（1-3星评论），提取用户痛点关键词和频率
 
 🏭 1688 Supplier Collector
-   └─→ Apify 采集 1688 供应商报价/MOQ/评分/复购率
+   └─→ 1个中文供应商关键词 + 1个 Apify Actor Run 采集 1688 供应商报价/MOQ/评分/复购率
 
 📱 apify-tiktok-scraper
-   └─→ 采集 TikTok 标签播放量/爆款视频/达人数据/内容类型分布
+   └─→ 1个核心搜索词 + 1个 Actor Run 采集 TikTok 标签播放量/爆款视频/达人数据/内容类型分布
 
 🗣️ Reddit Collector
-   └─→ Apify Reddit Scraper 采集 r/amazonreviews, r/FulfillmentByAmazon 等子版块讨论
+   └─→ 优先创建/复用 1 个 Apify Reddit Scraper Run 采集类目相关子版块、产品关键词讨论
    └─→ 提取用户抱怨、产品期望、未满足需求
 
 📈 Google Trends Collector
-   └─→ 采集关键词搜索趋势、区域热度、相关查询
+   └─→ 优先使用 1 个 Apify Google Trends/Serp Scraper Run 采集主关键词搜索趋势、区域热度、相关查询
+   └─→ Apify 不可用时才使用 Web Search/Web Fetch 补充可验证信息，并标明降级原因
 
 📊 Market Report Collector
-   └─→ 采集 Grand View Research / Mordor Intelligence 市场报告
+   └─→ 优先使用 1 个 Apify Web Scraper/Google Search/行业报告 Actor Run 采集 Grand View Research / Mordor Intelligence / Verified Market Reports 等公开摘要
+   └─→ Apify 不可用时使用 Web Search/Web Fetch 获取公开页面，并只引用页面上可验证的数字
 ```
 
 ### Step 3: 多维度智能分析
@@ -145,7 +216,7 @@ input_parser = {
    └─→ 评估各壁垒的可构建难度和时间窗口
 
 🎯 差异化选品与产品矩阵 → 引流款/主打款/利润款/配套款规划
-   └─→ 基于差评痛点+消费者画像+竞争对标综合推导
+   └─→ 基于差评痛点+消费者画像+竞争对标综合推导；每个推荐产品必须附带文生图提示词
 
 📋 90天执行路线图 → 月度里程碑 / 资源配置 / 关键节点
 
@@ -153,32 +224,89 @@ input_parser = {
    └─→ 强制输出至少3条"为什么可能不选这个品"的理由
 ```
 
-### Step 4: HTML 可视化报告生成
+### Step 4: HTML 可视化报告生成（产物二）
+
+**最终输出规则：**
+- HTML 报告是**产物二**，所有数字必须来自**产物一（Excel / `raw_data.json`）**，禁止凭空生成。
+- 文件名建议包含市场、类目、日期和采集批次。
+- HTML 报告必须优先使用真实采集数据驱动 Chart.js 图表、表格、词云和结论。
+- 对缺失数据的章节，若无可验证数据支撑，则隐藏图表、表格、KPI 和结论；最终报告不得展示“数据缺口”“未采集”“报错”“暂无数据”等提示。
+- 采集失败、字段缺失、追加 Actor 原因仅写入内部采集日志或原始数据文件，不进入面向用户的最终报告正文。
+- 每次分析必须按本 Skill 的 16 章方法论逐章评估是否有数据支撑，不能只做浅层竞品列表或单一维度摘要。
+
+**产物二必须包含的三大核心报告（缺失任一视为不合格）：**
+1. **细分市场分析报告** → 对应第2章（市场与产品定义）+ 第5章（市场容量筛选），给出品类边界、形态分类、赛道规模/增速/竞争度。
+2. **竞品对标分析报告** → 对应第7章（竞争格局与对标），给出 Top 3 竞品逐项对标（价格/评分/卖点/成分/包装/差评痛点/差异化机会）。
+3. **用户未满足需求清单** → 对应第3.4章 + 第8章（差评痛点）+ 第9章（Reddit 洞察），汇总用户反复抱怨但市场未满足的需求，标注频次与来源。
+
+**结尾必须包含「第17章 选品决策与 1688 落地建议」**（详见下方章节规范），重点针对 1688 采集到的品类给出：是否跟品/改品/开新品、差异化点、定价/利润/成本、推广路径。
 
 ```
 🎨 report-generator (HTML Mode)
-   └─→ 生成15章深度可视化交互报告
+   └─→ 生成16章 + 第17章深度可视化交互报告
       ├── 📋 执行摘要仪表盘（KPI卡片 + 综合评分雷达图）
-      ├── 🌐 市场与产品定义（产品形态分类图/目标用户定义）
+      ├── 🌐 市场与产品定义（产品形态分类图/目标用户定义）            ← 核心报告① 细分市场
       ├── 💡 需求逻辑与消费者画像（消费者分层漏斗图/购买决策链）
       ├── 📊 五维趋势交叉验证（5维度雷达图 + 一致性/矛盾信号表）
-      ├── 📈 市场容量筛选（成分-剂型十字矩阵热力图 + 各赛道评分表）
+      ├── 📈 市场容量筛选（成分-剂型十字矩阵热力图 + 各赛道评分表）    ← 核心报告① 细分市场
       ├── 🔄 产品生命周期定位（生命周期阶段判定图 + 策略矩阵）
-      ├── 🏆 竞争格局与对标（价格-评分散点图 + 品牌集中度 + 竞品对标表）
-      ├── ⭐ 差评痛点深度分析（痛点词云 + 分类占比饼图 + 频率×严重度矩阵）
-      ├── 🗣️ Reddit 用户洞察（情绪饼图 + 高频讨论主题柱状图）
+      ├── 🏆 竞争格局与对标（价格-评分散点图 + 品牌集中度 + 竞品对标表）← 核心报告② 竞品对标
+      ├── ⭐ 差评痛点深度分析（痛点词云 + 分类占比饼图 + 频率×严重度矩阵）← 核心报告③ 未满足需求
+      ├── 🗣️ Reddit 用户洞察（情绪饼图 + 高频讨论主题柱状图）          ← 核心报告③ 未满足需求
       ├── 📱 TikTok 流量验证（标签播放量排名 + 内容类型环形图）
-      ├── 🏭 供应链与成本验证（供应商报价区间图 + 质量评分表）
-      ├── 💰 利润模型构建（成本结构瀑布图 + 多档定价对比 + 盈亏平衡点）
+      ├── 🏭 供应链与成本验证（供应商报价区间图 + 质量评分表）        ← 第17章数据底座
+      ├── 💰 利润模型构建（成本结构瀑布图 + 多档定价对比 + 盈亏平衡点）← 第17章数据底座
       ├── 🛡️ 研发壁垒构建（5类壁垒可构建性评分雷达图）
       ├── 🎯 差异化选品与产品矩阵（产品矩阵四象限图）
+      ├── ⚠️ 风险评估与"为什么不选"（虚假蓝海检测 + 风险矩阵）
       ├── 📋 90天执行路线图（甘特图/里程碑时间线）
-      └── ⚠️ 风险评估与"为什么不选"（虚假蓝海检测 + 风险矩阵）
-```
+      └── 🎯 第17章 选品决策与 1688 落地建议（跟品/改品/开新品 + 差异化 + 定价利润 + 推广）
 
 ---
 
-## 报告章节规范 (v3.0 - 15章)
+## 产物一：采集数据 Excel 工作簿规范
+
+> 这是采集阶段的最终交付物，必须**全面、准确、可溯源**。所有平台原始数据（不加工、不聚合）按平台分工作表留存，每行带「来源链接」超链接。
+
+### 生成方式
+
+```bash
+# 1) 采集并落盘原始 JSON
+python scripts/data_collector.py ...   # 输出 raw_data.json
+# 2) 导出 Excel（自动分表 + 来源链接超链接）
+python scripts/excel_exporter.py \
+    --input raw_data.json \
+    --output <市场>_<类目>_采集数据.xlsx
+# 也可直接指向分阶段原始 JSON 所在目录：
+python scripts/excel_exporter.py --input-dir ./output/<批次> --output <市场>_<类目>_采集数据.xlsx
+```
+
+### 工作表与字段规范
+
+| 工作表 | 核心字段 | 来源链接列 | 对应额度 |
+|--------|---------|-----------|---------|
+| **采集总览** | 市场/类目/关键词/采集时间 + 各平台样本量计数 + Data Lineage | — | 全局 |
+| **Amazon_商品** | ASIN / 标题 / 品牌 / 类目 / 价格与币种 / Buy Box / 评分 / 评论数 / BSR / 月销量 / 上架日期 / 变体数 / 五点 / 规格 / 图片 / 关键词 / 市场 / 采集信息 | Amazon 详情页 | 默认 100，硬下限 50 |
+| **Amazon_差评** | Review ID / ASIN / 评分 / 标题 / 正文 / 日期 / 已验证购买 / 点赞 / 变体 / 采集信息 | 评论页或商品页 | 覆盖核心竞品 |
+| **TikTok_流量** | Video ID / 视频 URL / 作者 / 作者 URL / 文案 / 标签 / 时长 / 播放 / 点赞 / 评论 / 分享 / 收藏 / 发布时间 / 音乐 / 关键词 / 采集信息 | TikTok 视频页 | 去重后 ≥50 条 |
+| **TikTok_Shop_销量** | 商品 ID / 关键词 / 标题 / 类目 / 价格与币种 / 销量 / GMV / 店铺 / 评分 / 评论数 / 佣金 / 采集信息 | TikTok Shop 商品页 | 可用品类样本 |
+| **Reddit_讨论/差评** | Post/Comment ID / 子版块 / 作者 / 标题 / 正文 / 情绪 / 点赞 / 评论数 / 时间 / 负面命中词 / 关键词 / 采集信息 | Reddit 帖子/评论 | 可追溯样本 ≥20 条 |
+| **1688_供应商** | Offer ID / 关键词 / 商品 / 供应商 / 阶梯价 / 币种 / MOQ / 评分 / 复购率 / 成交量 / 响应率 / 地区 / 年限 / 认证 / OEM/ODM / 交期 / 采集信息 | 1688 商品/供应商页 | 有效报价 ≥20 条 |
+| **Google_Trends** | 日期/周 × 关键词指数 / 地区 / 6 个月时间范围 / 相关查询 / 截图路径或 URL / 采集信息 | Trends 查询页或 Actor snapshot | 最近 6 个月 |
+| **市场报告** | 报告名 / 机构 / 类目 / 地区 / 基准年 / 市场规模 / 预测年 / 预测值 / CAGR / 发布时间 / 摘要 / 采集信息 | 报告页 | 可验证报告 |
+| **原始字段明细** | 平台 / 记录索引 / 字段路径 / 原始值 / 来源链接 | 随原始记录 | 保留所有未映射和嵌套字段 |
+| **Data_Lineage** | 平台 / 采集方式 / 脚本或 Actor / Run ID / Dataset ID / 查询 / 请求数 / 有效数 / 去重数 / 采集时间 / 状态 / 补采原因 | Actor/Dataset URL（如有） | 全局 |
+
+### 来源链接规则（硬要求）
+
+- 每条数据行的「来源链接」必须是可点击的真实 URL（Amazon 详情页、TikTok 标签页、Reddit 帖子、1688 商品/搜索页、市场报告页等）。
+- 无 URL 的数据（如部分兜底搜索结果）必须在来源链接列留空并标注采集方式，不得伪造 URL。
+- Excel 中的所有数字必须与 `raw_data.json` 完全一致；Excel 是人工核对真实性的唯一可信底稿。
+- 标准化分表用于分析，`原始字段明细` 必须以长表形式保留每条原始记录的所有嵌套字段，不得因字段映射不全而丢失数据。
+
+---
+
+## 报告章节规范 (v3.2 - 16章)
 
 ### 第1章：📋 执行摘要仪表盘
 
@@ -565,12 +693,17 @@ input_parser = {
 ```
 
 **14.3 具体产品线规划**
-| 产品线 | 定位 | 目标人群 | 核心卖点 | 定价 | 预期月销 |
-|--------|------|---------|---------|------|---------|
-| 产品A | 引流款 | ... | ... | $X | X件 |
-| 产品B | 主打款 | ... | ... | $X | X件 |
-| 产品C | 利润款 | ... | ... | $X | X件 |
-| 产品D | 配套款 | ... | ... | $X | X件 |
+| 产品线 | 定位 | 目标人群 | 核心卖点 | 定价 | 预期月销 | 文生图提示词 |
+|--------|------|---------|---------|------|---------|-------------|
+| 产品A | 引流款 | ... | ... | $X | X件 | Photorealistic ecommerce product concept image... |
+| 产品B | 主打款 | ... | ... | $X | X件 | Photorealistic ecommerce product concept image... |
+| 产品C | 利润款 | ... | ... | $X | X件 | Photorealistic ecommerce product concept image... |
+| 产品D | 配套款 | ... | ... | $X | X件 | Photorealistic ecommerce product concept image... |
+
+**文生图提示词要求**
+- 每个推荐产品都必须输出一条可直接复制给生图模型的英文提示词。
+- 提示词需包含：产品名称/形态、目标市场、差异化卖点、材质或结构要点、包装/场景、Amazon listing 风格、浅色背景、无品牌 Logo、无可读文字、无水印。
+- 若推荐产品来自真实竞品痛点或 Reddit 需求缺口，提示词中的差异化卖点必须与该痛点/需求对应。
 
 **数据来源标注**：综合前13章数据来源
 
@@ -631,32 +764,94 @@ input_parser = {
 
 ---
 
+### 第17章：🎯 选品决策与 1688 落地建议（结尾重点）
+
+**目的**：把前面的分析收敛为一份可执行的「做不做、怎么做」决策书，**重点针对 1688 采集到的品类**。
+
+**17.1 选品决策结论（跟品 / 改品 / 开新品）**
+- 明确给出三选一结论，并给出一句话理由：
+  - **跟品**：直接跟 1688 现有爆款（低风险、快上线，但需说明利润空间是否足够）。
+  - **改品**：在现有品类上做差异化改良（基于差评痛点 / Reddit 需求缺口）。
+  - **开新品**：基于未满足需求开新品类（高风险高回报，需说明壁垒与周期）。
+- 结论必须回指数据：1688 供应商报价区间、Amazon 竞品价格/评分、差评痛点集中度、TikTok 热度、Google Trends 趋势。
+
+**17.2 差异化方案（如何做差异）**
+| 差异化维度 | 具体做法 | 对应痛点/需求来源 |
+|-----------|---------|-----------------|
+| 功能改进 | 添加/升级哪些功能 | 第8章差评痛点、第9章Reddit需求 |
+| 设计改进 | 材质/结构/外观/包装变化 | 差评包装/质量类、消费者画像 |
+| 配方/成分 | 成分调整、认证加成 | 成分党需求、合规壁垒 |
+| 场景扩展 | 新使用场景/新人群 | 第3章未满足需求地图 |
+
+**17.3 定价、成本与利润（必须量化）**
+| 项目 | 数值 | 依据 |
+|------|------|------|
+| 1688 采购成本(含包材) | ¥X / $X | 1688_供应商 表报价区间 |
+| 头程+FBA+佣金+广告 | $X | FBA费率表/费率假设 |
+| **建议零售价** | $X | 竞品对标（第7章）+ 目标净利率 |
+| **预估毛利率** | XX% | 第12章利润模型 |
+| **预估月净利(按预期销量)** | $X | 销量假设来自 TikTok Shop / 竞品 |
+| 回本周期 | X 天 | 第12章盈亏平衡 |
+
+**17.4 推广路径（后续怎么推）**
+- **冷启动**：广告架构（SP/SB）、预算与 ACOS 目标、首批评价获取方式。
+- **内容种草**：TikTok 达人对接策略（基于第10章传播潜力评分）、短视频/测评内容方向。
+- **渠道**：Amazon 为主 + 是否同步 TikTok Shop（结合 TikTok_Shop_销量数据）。
+- **节奏**：对齐第16章 90 天路线图的关键里程碑。
+
+**数据来源标注**：1688_供应商表 / Amazon_商品与差评表 / TikTok_Shop_销量表 / Google_Trends表 / 第7/8/9/12章。
+
+---
+
 ## ⚠️ 数据真实性原则（核心规则）
 
 ### 必须遵守
 
+0. **分平台采集路由**
+   - Amazon 商品、价格、BSR、评分、评论和差评优先通过 `amazon-product-scraper` 低成本采集；只有本地采集失败、样本不足或字段缺失时，才使用 `apify-amazon-scraper` 补采。
+   - Reddit、Google Trends、1688、TikTok、市场报告、公开网页等所有需要数据采集的平台，必须优先通过 Apify Actor 采集。
+   - 没有现成 Actor 时，优先配置通用 Actor（如 Web Scraper、Google Search Results、Reddit Scraper、Google Trends/Serp Scraper），但同一平台本轮默认只运行一个 Actor。
+   - 只有 Actor 不存在、权限/API 配额不足、目标站点无法采集、字段缺失或运行失败时，才允许使用 Web Search/Web Fetch 兜底。
+   - 所有失败、兜底和追加 Actor 原因必须记录在内部采集日志或原始数据目录，不进入最终报告正文。
+
+0.1 **单平台单任务成本控制**
+   - 每个平台每轮调研默认只执行一次采集：1 个主关键词或 1 个类目，1 个 Actor Run/脚本任务。
+   - 同义词、近义词、长尾词先在本地用于归并、过滤和结果标注，不得直接拆成多个 Actor Run。
+   - 只有首轮样本量低于分析阈值、缺少核心字段、或平台返回结果明显偏题时，才追加第二次采集。
+   - 追加采集必须限定缺口字段或缺口样本，不得重新全量抓取同一平台。
+
 1. **所有数据必须来自真实采集源或权威公开数据源，不得捏造**
-   - 采集失败 → 标注"数据暂未获取"，不显示该数据项
+   - 采集失败、字段为空或无法验证 → 不进入最终报告，不显示该数据项
    - 不显示捏造的示例数据或占位符
+   - 不得用行业经验、常识估算、AI 推测值替代真实数据
+   - 如果只能形成方向性判断，必须标记为“基于已采集资料的推断”，且不得作为核心 KPI
 
 2. **每个章节底部必须标注数据来源**（Data Lineage）
    ```
    📌 数据来源：
-   - Amazon竞品数据：Apify actor [actor-name]，采集时间 2026-XX-XX，采集XX条商品数据
-   - 差评数据：Apify actor [actor-name]，采集时间 2026-XX-XX，每条竞品采集XX条评论
+   - Amazon竞品数据：amazon-product-scraper 或 Apify actor [actor-name]，采集时间 2026-XX-XX，采集XX条商品数据
+   - 差评数据：amazon-product-scraper 或 Apify actor [actor-name]，采集时间 2026-XX-XX，每条竞品采集XX条评论
    - TikTok数据：Apify actor [actor-name]，标签 #XXX，采集时间 2026-XX-XX
    - Reddit数据：Apify actor [actor-name]，子版块 r/XXX，采集时间 2026-XX-XX
    - 市场规模：来自 [报告名称/URL]，发布时间 202X年
-   - Google Trends：pytrends采集，关键词 [XXX]，时间范围 5年
+   - Google Trends：Apify actor [actor-name]，关键词 [XXX]，时间范围为最近 6 个月，同时记录趋势截图路径/URL
    - 1688数据：Apify actor [actor-name]，搜索关键词 [XXX]，采集时间 2026-XX-XX
    - 联网搜索：[具体URL]，获取时间 2026-XX-XX
    ```
 
-3. **数据新鲜度**：所有数据标注采集时间，建议每周更新
+3. **数据新鲜度**：所有数据标注采集时间，建议每周更新；趋势、价格、评论、销量、BSR、TikTok 热度等易变数据必须优先采集最新结果。
 
 4. **数据缺失处理**：
+   - 如果某个数据源无法采集到真实可验证数据，相应图表、KPI、评分项不显示且不参与综合评分
+   - 如果某章核心数据缺失，相应章节从报告主体隐藏
    - 如果7个数据源都无法采集到数据，相应章节不显示
-   - 报告中明确标注"以下数据暂未获取"而非留空或捏造
+   - 报告中不得出现"以下数据暂未获取"、"暂无数据"、"采集失败"、"报错"、空表或占位符
+   - 不得为了保持章节完整而展示空表、占位符、示例值或未经验证的数字
+
+5. **结论可追溯**
+   - 每个推荐、风险、评分、机会判断都必须能回溯到至少一个真实数据源
+   - 关键结论优先使用两个以上来源交叉验证；若只有单一来源，必须降低置信度并标注
+   - 矛盾信号必须在第4章交叉验证矩阵和第15章风险评估中同时体现
 
 ---
 
@@ -697,7 +892,7 @@ chartColors: [
 
 ---
 
-## 选品决策标准 (v3.0 更新)
+## 选品决策标准 (v3.2 更新)
 
 | 指标 | 标准 | 权重 | 数据来源 |
 |------|------|------|----------|
@@ -728,35 +923,57 @@ APIFY_1688_ACTOR_ID=your-1688-actor-id
 # Reddit
 APIFY_REDDIT_ACTOR_ID=your-reddit-actor-id
 
-# Google Trends (备选)
+# TikTok（标签流量 + Shop 销量）
+APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
+APIFY_TIKTOK_SHOP_ACTOR_ID=clockworks/tiktok-shop-scraper   # 品类销量/GMV
+
+# Google Trends / SERP / Web Search
+APIFY_GOOGLE_TRENDS_ACTOR_ID=your-google-trends-actor-id
+APIFY_GOOGLE_SEARCH_ACTOR_ID=your-google-search-actor-id
 SERPAPI_API_KEY=your-serpapi-key
 
-# 可选
+# 市场报告 / 通用网页采集
+APIFY_MARKET_REPORT_ACTOR_ID=your-market-report-actor-id
+APIFY_WEB_SCRAPER_ACTOR_ID=your-web-scraper-actor-id
+
+# 可选 · 产物一 Excel 与额度
 DEFAULT_MARKET=US
-OUTPUT_FORMAT=html  # 默认 HTML 可视化报告
-MAX_PRODUCTS=100
+OUTPUT_FORMAT=html        # 产物二 HTML；产物一 Excel 由 excel_exporter.py 生成
+MAX_PRODUCTS=100          # Amazon 默认商品数
+MIN_AMAZON_PRODUCTS=50    # Amazon 去重后有效商品硬下限
+DEFAULT_TIKTOK_ITEMS=50   # TikTok 默认原始视频数
+MIN_TIKTOK_ITEMS=50       # TikTok 去重后原始视频硬下限
+MIN_NEG_REVIEWS=5         # 每个品类最少差评数（5-10）
+MIN_SUPPLIERS=20          # 1688 最少供应商数
+MIN_REDDIT_ITEMS=20       # Reddit 最少可追溯帖子/评论数
+TRENDS_MONTHS=6           # Google Trends 趋势窗口（约半年）
+TRENDS_SAVE_SCREENSHOT=true
 ```
 
-### 子 Skill 依赖关系 (v3.0 更新)
+### 子 Skill 依赖关系 (v3.2 更新)
 
 ```
 amazon-product-researcher (主入口)
-├── apify-amazon-scraper (必需 - 商品数据+差评)
+├── amazon-product-scraper (Amazon 首选 - 商品数据+差评，低成本优先)
+├── apify-amazon-scraper (Amazon 补缺 - 本地 scraper 失败或字段缺失时使用)
 ├── 1688 Supplier Collector (利润模型需要时必需)
-├── apify-tiktok-scraper (推荐)
-├── Reddit Collector (用户洞察)
-├── Google Trends Collector (搜索趋势)
-├── apify-market-scraper (可选)
+├── apify-tiktok-scraper (推荐 - 标签流量)
+├── apify-tiktok-shop-scraper (推荐 - 品类销量/GMV)
+├── Reddit Collector (用户洞察 - Apify First)
+├── Google Trends Collector (搜索趋势 - Apify First，失败才 Web Search/Web Fetch)
+├── apify-market-scraper (市场报告 - Apify First)
+├── Apify Web Scraper / Google Search Actor (公开网页兜底采集)
+├── scripts/excel_exporter.py  ★ 产物一：原始数据 → 多表 Excel(含来源链接)
 ├── charts-generator (图表数据)
 ├── profit-model-builder (自动)
-└── report-generator (必需 - HTML可视化)
+└── report-generator (必需 - 产物二 HTML可视化)
 ```
 
 ---
 
 ## 分析类集成
 
-v3.0 整合了以下核心分析类（来自 `amazon_product_researcher.py`）：
+v3.2 整合并继续使用以下核心分析类（来自 `amazon_product_researcher.py`）：
 
 | 分析类 | 功能 | 对应章节 |
 |--------|------|----------|
@@ -770,26 +987,33 @@ v3.0 整合了以下核心分析类（来自 `amazon_product_researcher.py`）�
 
 ## 注意事项
 
-1. **API Token**: 确保配置了 Apify API Token
-2. **差评采集成本**: 每个商品约消耗 $0.5，Top 20 商品约 $10
-3. **Reddit 数据**: 部分子版块可能需代理访问
-4. **Google Trends**: 建议使用 SerpAPI 或 pytrends 库（免费），中国网络环境可能受限
-5. **Word Cloud**: 需要中文分词支持（jieba）
-6. **数据新鲜度**: 所有数据标注采集时间，建议每周更新
-7. **合规**: 保健品/儿童/食品接触类产品需额外合规检查
-8. **数据真实性**: 采集失败则不显示，不捏造数据，不使用 mock 数据
-9. **"为什么不选"**: 强制在每份报告中输出至少3条反对理由
+1. **API Token**: 确保配置了 Apify API Token（Amazon 先跑本地脚本；其他平台 Apify First）
+2. **双产物顺序**: 先产出产物一（Excel + raw_data.json），再产出产物二（HTML）；HTML 数字必须回指 Excel
+3. **Excel 来源链接**: 每个工作表每行必须带可点击的「来源链接」超链接；无 URL 不得伪造，留空并标注采集方式
+4. **平台额度**: Amazon 默认 100、硬下限 50；TikTok 去重原始视频 ≥50；1688 有效报价 ≥20；Reddit 可追溯样本 ≥20；Google Trends 保存 6 个月数据与截图
+5. **差评采集成本**: 每个商品约消耗 $0.5，Top 20 商品约 $10
+6. **Reddit 数据**: 必须是真实 Reddit 帖子（含 url）；优先 Apify Reddit Actor，失败后才用 Web Search 补充公开讨论
+7. **Google Trends**: 优先使用 Apify Google Trends/Serp Actor；失败后才使用 Web Search/Web Fetch 补充可验证信息。无论采集方式，都必须保存最近 6 个月数据和趋势截图。
+8. **Word Cloud**: 需要中文分词支持（jieba）
+9. **数据新鲜度**: 所有数据标注采集时间，建议每周更新
+10. **合规**: 保健品/儿童/食品接触类产品需额外合规检查
+11. **数据真实性**: 采集失败则不显示，不捏造数据，不使用 mock 数据，不用未经验证的推测填补 KPI
+12. **"为什么不选"**: 强制在每份报告中输出至少3条反对理由
+13. **HTML 主交付**: 每次分析默认输出 HTML 深度可视化报告；其他格式仅作辅助
+14. **方法论完整性**: 每次分析都必须按 16 章 + 第17章框架逐章评估，真实数据不足的章节静默隐藏，不得简化为浅层清单
+15. **结尾落地建议**: 产物二必须包含第17章，针对 1688 品类给出跟品/改品/开新品决策、差异化、定价利润成本与推广路径
 
 ---
 
 ## 相关 Skills
 
-- [apify-amazon-scraper](./apify-amazon-scraper/) - Apify 亚马逊商品+差评采集
-- [apify-tiktok-scraper](./apify-tiktok-scraper/) - Apify TikTok 数据采集
-- [apify-market-scraper](./apify-market-scraper/) - Apify 市场报告采集
-- [profit-model-builder](./profit-model-builder/) - 利润模型构建
-- [report-generator](./report-generator/) - 报告生成
+- [amazon-product-scraper](../amazon-product-scraper/) - Amazon 商品+差评低成本首选采集
+- [apify-amazon-scraper](../apify-amazon-scraper/) - Apify 亚马逊商品+差评补缺采集
+- [apify-tiktok-scraper](../apify-tiktok-scraper/) - Apify TikTok 数据采集
+- [apify-market-scraper](../apify-market-scraper/) - Apify 市场报告采集
+- [profit-model-builder](../profit-model-builder/) - 利润模型构建
+- [report-generator](../report-generator/) - 报告生成
 - [charts-generator](./scripts/charts_generator.py) - 图表数据结构生成
-- [reddit-collector](./scripts/reddit_collector.py) - Reddit 数据采集与分析
 - [data-collector](./scripts/data_collector.py) - 7大数据源采集器
+- [excel_exporter](./scripts/excel_exporter.py) - ★ 产物一：原始数据 → 多表 Excel（含来源链接）
 - [amazon_product_researcher](./scripts/amazon_product_researcher.py) - 核心分析类库（KeywordAnalyzer/BrandAnalyzer/PainPointAnalyzer/FalseBlueOceanDetector/SelectionDecisionMatrix）

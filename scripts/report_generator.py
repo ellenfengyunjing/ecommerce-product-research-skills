@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from config import REPORT_CONFIG
+from image_prompt_builder import attach_image_prompts
 
 
 class ReportGenerator:
@@ -51,6 +52,15 @@ class ReportGenerator:
             return self._generate_word(filename)
         else:
             return self._generate_markdown(filename)
+
+    @staticmethod
+    def _visible(value) -> bool:
+        """报告只展示真实、非空、非错误的数据。"""
+        if value in (None, "", [], {}, "N/A", "Unknown", "暂无数据", "未采集", "采集失败"):
+            return False
+        if isinstance(value, dict) and value.get("error"):
+            return False
+        return True
 
     def _generate_markdown(self, filename: str) -> Path:
         """生成 Markdown 报告"""
@@ -131,9 +141,12 @@ class ReportGenerator:
 
         # 元信息
         metadata = self.data.get("metadata", {})
-        doc.add_paragraph(f"市场: {metadata.get('market', 'N/A')}")
-        doc.add_paragraph(f"类目: {metadata.get('category', 'N/A')}")
-        doc.add_paragraph(f"生成时间: {metadata.get('generated_at', 'N/A')}")
+        if self._visible(metadata.get("market")):
+            doc.add_paragraph(f"市场: {metadata.get('market')}")
+        if self._visible(metadata.get("category")):
+            doc.add_paragraph(f"类目: {metadata.get('category')}")
+        if self._visible(metadata.get("generated_at")):
+            doc.add_paragraph(f"生成时间: {metadata.get('generated_at')}")
 
         # 添加各部分内容
         analysis = self.data.get("analysis", {})
@@ -142,8 +155,12 @@ class ReportGenerator:
         doc.add_heading("市场分析", level=1)
         market_analysis = analysis.get("market", {})
         if market_analysis:
-            doc.add_paragraph(f"市场规模: {market_analysis.get('market_size', {}).get('estimated_size', 'N/A')}")
-            doc.add_paragraph(f"品牌集中度: {market_analysis.get('brand_concentration', {}).get('top10_concentration', 'N/A')}")
+            market_size = market_analysis.get("market_size", {}).get("estimated_size")
+            concentration = market_analysis.get("brand_concentration", {}).get("top10_concentration")
+            if self._visible(market_size):
+                doc.add_paragraph(f"市场规模: {market_size}")
+            if self._visible(concentration):
+                doc.add_paragraph(f"品牌集中度: {concentration}")
 
         # 利润模型
         doc.add_heading("利润模型", level=1)
@@ -159,8 +176,8 @@ class ReportGenerator:
         # TikTok 分析
         doc.add_heading("TikTok 传播分析", level=1)
         tiktok_analysis = analysis.get("tiktok", {})
-        if tiktok_analysis:
-            doc.add_paragraph(f"病毒传播评分: {tiktok_analysis.get('virality_score', 'N/A')}")
+        if tiktok_analysis and self._visible(tiktok_analysis.get("virality_score")):
+            doc.add_paragraph(f"病毒传播评分: {tiktok_analysis.get('virality_score')}")
 
         filepath = self.output_dir / f"{filename}.docx"
         doc.save(str(filepath))
@@ -177,7 +194,13 @@ class ReportGenerator:
         # 标题
         lines.append(f"# 🛒 亚马逊选品调研报告")
         lines.append("")
-        lines.append(f"**市场:** {metadata.get('market', 'N/A')} | **类目:** {metadata.get('category', 'N/A')}")
+        meta_parts = []
+        if self._visible(metadata.get("market")):
+            meta_parts.append(f"**市场:** {metadata.get('market')}")
+        if self._visible(metadata.get("category")):
+            meta_parts.append(f"**类目:** {metadata.get('category')}")
+        if meta_parts:
+            lines.append(" | ".join(meta_parts))
         lines.append(f"**生成时间:** {metadata.get('generated_at', datetime.now().isoformat())}")
         lines.append("")
         lines.append("---")
@@ -195,9 +218,6 @@ class ReportGenerator:
         # TikTok 验证
         lines.extend(self._build_tiktok_section(analysis))
 
-        # 1688 供应商成本
-        lines.extend(self._build_supplier_section(analysis))
-
         # 利润模型
         lines.extend(self._build_profit_section(analysis))
 
@@ -209,164 +229,126 @@ class ReportGenerator:
     def _build_executive_summary(self, analysis: Dict) -> list:
         """构建执行摘要"""
         lines = []
-        lines.append("## 📋 执行摘要")
-        lines.append("")
-
         market_analysis = analysis.get("market", {})
         profit_analysis = analysis.get("profit", {})
 
         # 识别机会
         blue_ocean = market_analysis.get("blue_ocean_opportunities", [])
         if blue_ocean:
+            lines.append("## 📋 执行摘要")
+            lines.append("")
             lines.append("### 🎯 识别到的蓝海机会")
             lines.append("")
             for i, opp in enumerate(blue_ocean[:3], 1):
-                lines.append(f"{i}. **{opp.get('title', 'Unknown')}**")
-                lines.append(f"   - {opp.get('description', '')}")
-                lines.append(f"   - 评分: {opp.get('score', 0)}/100")
+                if self._visible(opp.get("title")):
+                    lines.append(f"{i}. **{opp.get('title')}**")
+                if self._visible(opp.get("description")):
+                    lines.append(f"   - {opp.get('description')}")
+                if self._visible(opp.get("score")):
+                    lines.append(f"   - 评分: {opp.get('score')}/100")
                 lines.append("")
 
         # 推荐定价
         if profit_analysis:
-            recommended = profit_analysis.get("profit_analysis", {}).get("recommended_tier", {})
-            if recommended:
+            recommended = profit_analysis.get("recommendations", {}).get("recommended_tier", {})
+            if recommended and all(self._visible(recommended.get(k)) for k in ("name", "price", "profit", "margin")):
+                if not lines:
+                    lines.append("## 📋 执行摘要")
+                    lines.append("")
                 lines.append("### 💰 推荐定价方案")
                 lines.append("")
                 lines.append(f"| 产品定位 | 售价 | 利润 | 利润率 |")
                 lines.append(f"|----------|------|------|--------|")
-                lines.append(f"| {recommended.get('name', 'N/A')} | ${recommended.get('price', 0):.2f} | ${recommended.get('profit', 0):.2f} | {recommended.get('margin', 0)*100:.1f}% |")
+                lines.append(f"| {recommended.get('name')} | ${recommended.get('price'):.2f} | ${recommended.get('profit'):.2f} | {recommended.get('margin')*100:.1f}% |")
                 lines.append("")
 
-        lines.append("---")
-        lines.append("")
-
-        return lines
-
-    def _build_supplier_section(self, analysis: Dict) -> list:
-        """构建 1688 供应商成本章节"""
-        lines = []
-        lines.append("## 🏭 1688 供应商成本与供应链验证")
-        lines.append("")
-
-        supplier_analysis = analysis.get("supplier", {})
-        cost_summary = supplier_analysis.get("cost_summary", {})
-        top_suppliers = supplier_analysis.get("top_suppliers", [])
-        warnings = supplier_analysis.get("warnings", [])
-
-        lines.append(f"- **有效供应商数量:** {supplier_analysis.get('valid_supplier_count', 0)}")
-        lines.append(f"- **供应链稳定评分:** {supplier_analysis.get('stability_score', 0)}/1.0")
-        lines.append(f"- **低位成本:** ¥{cost_summary.get('low_cost_rmb') or 'N/A'}")
-        lines.append(f"- **中位成本:** ¥{cost_summary.get('median_cost_rmb') or 'N/A'}")
-        lines.append(f"- **高位成本:** ¥{cost_summary.get('high_cost_rmb') or 'N/A'}")
-        lines.append("")
-
-        if warnings:
-            lines.append("### 风险提示")
-            lines.append("")
-            for warning in warnings:
-                lines.append(f"- {warning}")
+        if lines:
+            lines.append("---")
             lines.append("")
 
-        if top_suppliers:
-            lines.append("### 候选供应商样本")
-            lines.append("")
-            lines.append("| 关键词 | 商品 | 供应商 | 价格区间 | MOQ | 评分 | 链接 |")
-            lines.append("|--------|------|--------|----------|-----|------|------|")
-            for item in top_suppliers[:10]:
-                price_min = item.get("price_min_rmb") or "N/A"
-                price_max = item.get("price_max_rmb") or "N/A"
-                url = item.get("product_url") or ""
-                link = f"[查看]({url})" if url else "N/A"
-                lines.append(
-                    f"| {item.get('keyword', '')} | {item.get('title', '')[:30]} | "
-                    f"{item.get('supplier_name', '')} | ¥{price_min}-¥{price_max} | "
-                    f"{item.get('moq') or 'N/A'} | {item.get('rating') or 'N/A'} | {link} |"
-                )
-            lines.append("")
-
-        lines.append("---")
-        lines.append("")
         return lines
 
     def _build_market_section(self, analysis: Dict) -> list:
         """构建市场分析章节"""
-        lines = []
-        lines.append("## 📊 市场分析")
-        lines.append("")
-
         market_analysis = analysis.get("market", {})
+        section = []
 
         # 市场规模
         market_size = market_analysis.get("market_size", {})
-        lines.append(f"### 市场规模")
-        lines.append("")
-        lines.append(f"- **市场规模:** {market_size.get('estimated_size', 'N/A')}")
-        lines.append(f"- **年增长率 (CAGR):** {market_size.get('cagr', 0)*100:.1f}%")
-        lines.append(f"- **商品总数:** {market_size.get('total_products', 0)}")
-        lines.append("")
+        market_lines = []
+        if self._visible(market_size.get("estimated_size")):
+            market_lines.append(f"- **市场规模:** {market_size.get('estimated_size')}")
+        if self._visible(market_size.get("cagr")):
+            market_lines.append(f"- **年增长率 (CAGR):** {market_size.get('cagr')*100:.1f}%")
+        if self._visible(market_size.get("total_products")):
+            market_lines.append(f"- **商品总数:** {market_size.get('total_products')}")
+        if market_lines:
+            section.extend(["### 市场规模", "", *market_lines, ""])
 
         # 品牌集中度
         brand_conc = market_analysis.get("brand_concentration", {})
-        lines.append(f"### 品牌集中度")
-        lines.append("")
-        lines.append(f"- **独特品牌数:** {brand_conc.get('unique_brands', 0)}")
-        lines.append(f"- **Top 10 集中度:** {brand_conc.get('top10_concentration', 0)*100:.1f}%")
-        lines.append(f"- **建议:** {brand_conc.get('recommendation', 'N/A')}")
-        lines.append("")
+        brand_lines = []
+        if self._visible(brand_conc.get("unique_brands")):
+            brand_lines.append(f"- **独特品牌数:** {brand_conc.get('unique_brands')}")
+        if self._visible(brand_conc.get("top10_concentration")):
+            brand_lines.append(f"- **Top 10 集中度:** {brand_conc.get('top10_concentration')*100:.1f}%")
+        if self._visible(brand_conc.get("recommendation")):
+            brand_lines.append(f"- **建议:** {brand_conc.get('recommendation')}")
+        if brand_lines:
+            section.extend(["### 品牌集中度", "", *brand_lines, ""])
 
-        lines.append("---")
-        lines.append("")
+        if not section:
+            return []
 
-        return lines
+        return ["## 📊 市场分析", "", *section, "---", ""]
 
     def _build_competition_section(self) -> list:
         """构建竞争分析章节"""
-        lines = []
-        lines.append("## 🏆 竞争分析")
-        lines.append("")
-        lines.append("### 价格分布")
-        lines.append("")
+        products = [p for p in self.data.get("amazon", []) if self._visible(p.get("price"))]
+        if not products:
+            return []
 
-        # TODO: 接入真实数据
-        lines.append("| 价格区间 | 商品数量 | 占比 |")
-        lines.append("|----------|----------|------|")
-        lines.append("| $0-10 | 20 | 20% |")
-        lines.append("| $10-20 | 35 | 35% |")
-        lines.append("| $20-30 | 25 | 25% |")
-        lines.append("| $30+ | 20 | 20% |")
-        lines.append("")
+        bins = {}
+        for product in products:
+            price = float(product.get("price", 0))
+            key = f"${int(price // 10) * 10}-{int(price // 10) * 10 + 10}"
+            bins[key] = bins.get(key, 0) + 1
 
-        lines.append("---")
-        lines.append("")
-
+        lines = ["## 🏆 竞争分析", "", "### 价格分布", ""]
+        lines.append("| 价格区间 | 商品数量 |")
+        lines.append("|----------|----------|")
+        for key, count in sorted(bins.items()):
+            lines.append(f"| {key} | {count} |")
+        lines.extend(["", "---", ""])
         return lines
 
     def _build_tiktok_section(self, analysis: Dict) -> list:
         """构建 TikTok 验证章节"""
         lines = []
-        lines.append("## 📱 TikTok 传播验证")
-        lines.append("")
-
         tiktok_analysis = analysis.get("tiktok", {})
+        section = []
 
         # 病毒传播评分
-        lines.append(f"### 病毒传播评分")
-        lines.append("")
         score = tiktok_analysis.get("virality_score", 0)
-        score_bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
-        lines.append(f"`{score_bar}` {score*100:.0f}%")
-        lines.append("")
+        if self._visible(score):
+            score_bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
+            section.extend(["### 病毒传播评分", "", f"`{score_bar}` {score*100:.0f}%", ""])
 
         # 标签表现
         hashtags = tiktok_analysis.get("hashtag_performance", [])
         if hashtags:
-            lines.append("### 标签表现")
-            lines.append("")
-            lines.append("| 标签 | 播放量 | 趋势 |")
-            lines.append("|------|--------|------|")
+            tag_rows = []
             for tag in hashtags[:5]:
-                lines.append(f"| {tag.get('hashtag', 'N/A')} | {tag.get('views', 0):,} | {tag.get('growth', 'N/A')} |")
-            lines.append("")
+                if self._visible(tag.get("hashtag")) and self._visible(tag.get("views")):
+                    growth = tag.get("growth", "")
+                    tag_rows.append(f"| {tag.get('hashtag')} | {tag.get('views'):,} | {growth} |")
+            if tag_rows:
+                lines.append("### 标签表现")
+                lines.append("")
+                lines.append("| 标签 | 播放量 | 趋势 |")
+                lines.append("|------|--------|------|")
+                lines.extend(tag_rows)
+                lines.append("")
 
         # 建议
         recommendations = tiktok_analysis.get("recommendations", [])
@@ -377,32 +359,24 @@ class ReportGenerator:
                 lines.append(f"- {rec}")
             lines.append("")
 
-        lines.append("---")
-        lines.append("")
+        section.extend(lines)
+        if not section:
+            return []
 
-        return lines
+        return ["## 📱 TikTok 传播验证", "", *section, "---", ""]
 
     def _build_profit_section(self, analysis: Dict) -> list:
         """构建利润模型章节"""
-        lines = []
-        lines.append("## 💰 利润模型")
-        lines.append("")
-
         profit_analysis = analysis.get("profit", {})
+        lines = []
 
-        # 成本结构
-        lines.append("### 成本结构 (以 $25 售价为例)")
-        lines.append("")
-        lines.append("| 成本项 | 金额 | 占比 |")
-        lines.append("|--------|------|------|")
-        lines.append("| 产品成本 | $5.80 | 23.2% |")
-        lines.append("| 平台佣金 | $3.75 | 15.0% |")
-        lines.append("| FBA 费用 | $3.50 | 14.0% |")
-        lines.append("| 广告费 | $5.00 | 20.0% |")
-        lines.append("| 退款损耗 | $0.75 | 3.0% |")
-        lines.append("| 汇损 | $0.25 | 1.0% |")
-        lines.append("| **总计** | **$19.05** | **76.2%** |")
-        lines.append("")
+        cost_structure = profit_analysis.get("cost_structure", {})
+        if cost_structure:
+            lines.extend(["### 成本结构", "", "| 成本项 | 金额 |", "|--------|------|"])
+            for name, amount in cost_structure.items():
+                if self._visible(amount):
+                    lines.append(f"| {name} | ${amount:.2f} |")
+            lines.append("")
 
         # 定价方案
         tiers = profit_analysis.get("pricing_tiers", [])
@@ -412,53 +386,47 @@ class ReportGenerator:
             lines.append("| 产品定位 | 售价 | 成本 | 利润 | 毛利率 | 净利润率 |")
             lines.append("|----------|------|------|------|--------|----------|")
             for tier in tiers:
-                lines.append(
-                    f"| {tier.get('name', 'N/A')} | ${tier.get('price', 0):.2f} | "
-                    f"${tier.get('cost', 0):.2f} | ${tier.get('profit', 0):.2f} | "
-                    f"{(1 - tier.get('cost', 0)/tier.get('price', 1))*100:.1f}% | "
-                    f"{tier.get('margin', 0)*100:.1f}% |"
-                )
+                if all(self._visible(tier.get(k)) for k in ("name", "price", "cost", "profit", "margin")):
+                    lines.append(
+                        f"| {tier.get('name')} | ${tier.get('price'):.2f} | "
+                        f"${tier.get('cost'):.2f} | ${tier.get('profit'):.2f} | "
+                        f"{(1 - tier.get('cost')/tier.get('price'))*100:.1f}% | "
+                        f"{tier.get('margin')*100:.1f}% |"
+                    )
             lines.append("")
 
-        lines.append("---")
-        lines.append("")
+        if not lines:
+            return []
 
-        return lines
+        return ["## 💰 利润模型", "", *lines, "---", ""]
 
     def _build_recommendations_section(self, analysis: Dict) -> list:
         """构建选品建议章节"""
-        lines = []
-        lines.append("## ✅ 选品建议")
-        lines.append("")
-        lines.append("### 综合推荐")
-        lines.append("")
-
+        metadata = self.data.get("metadata", {})
         market_analysis = analysis.get("market", {})
-        blue_ocean = market_analysis.get("blue_ocean_opportunities", [])
+        blue_ocean = attach_image_prompts(
+            market_analysis.get("blue_ocean_opportunities", []),
+            category=metadata.get("category", ""),
+            market=metadata.get("market", ""),
+        )
 
-        if blue_ocean:
-            for i, opp in enumerate(blue_ocean[:3], 1):
-                lines.append(f"#### {i}. {opp.get('title', 'Unknown')}")
-                lines.append("")
-                lines.append(f"**描述:** {opp.get('description', '')}")
-                lines.append("")
-                lines.append(f"**评分:** {opp.get('score', 0)}/100")
-                lines.append("")
-        else:
-            lines.append("基于当前数据分析，建议关注以下方向：")
-            lines.append("")
-            lines.append("1. **细分市场差异化** - 寻找头部品牌的弱点切入")
-            lines.append("2. **内容营销驱动** - 利用 TikTok 等社交媒体建立品牌")
-            lines.append("3. **品质驱动定价** - 不要陷入价格战，注重产品品质")
-            lines.append("")
+        if not blue_ocean:
+            return []
 
-        # 风险提示
-        lines.append("### ⚠️ 风险提示")
-        lines.append("")
-        lines.append("- 市场变化快，需持续关注竞品动态")
-        lines.append("- 供应链稳定性至关重要，建议多供应商备选")
-        lines.append("- 合规性检查，确保产品符合目标市场法规")
-        lines.append("")
+        lines = ["## ✅ 选品建议", "", "### 综合推荐", ""]
+        for i, opp in enumerate(blue_ocean[:3], 1):
+            if self._visible(opp.get("title")):
+                lines.append(f"#### {i}. {opp.get('title')}")
+                lines.append("")
+            if self._visible(opp.get("description")):
+                lines.append(f"**描述:** {opp.get('description')}")
+                lines.append("")
+            if self._visible(opp.get("score")):
+                lines.append(f"**评分:** {opp.get('score')}/100")
+                lines.append("")
+            if self._visible(opp.get("image_prompt")):
+                lines.append(f"**文生图提示词:** {opp.get('image_prompt')}")
+                lines.append("")
 
         lines.append("---")
         lines.append("")

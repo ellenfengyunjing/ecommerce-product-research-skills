@@ -389,6 +389,17 @@ class HTMLReportGenerator:
             border-radius: 6px;
             border-left: 3px solid var(--accent-cyan);
         }}
+        .diff-prompt {{
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: rgba(188,140,255,0.08);
+            padding: 10px 12px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-purple);
+            margin-top: 10px;
+            line-height: 1.5;
+            word-break: break-word;
+        }}
         .diff-score {{
             display: inline-flex;
             align-items: center;
@@ -1178,12 +1189,12 @@ function buildRoadmapTimeline() {{
 // ===== v3.0 NEW: 数据溯源填充 =====
 function populateDataLineage() {{
     const lineages = {{
-        'lineage-ch01': ['Amazon竞品数据: Apify actor, 采集时间见报告元数据', '市场报告: 来源见第4章', 'TikTok数据: Apify actor'],
-        'lineage-ch02': ['Amazon BSR类目数据: Apify actor', '产品分类: 基于采集数据统计'],
-        'lineage-ch03': ['Reddit用户讨论: Apify Reddit Scraper', 'Amazon评论: Apify Amazon Review Scraper', 'TikTok评论: Apify TikTok Scraper'],
+        'lineage-ch01': ['Amazon竞品数据: amazon-product-scraper 优先，Apify 补缺；采集时间见报告元数据', '市场报告: 来源见第4章', 'TikTok数据: Apify actor'],
+        'lineage-ch02': ['Amazon BSR类目数据: amazon-product-scraper 优先，Apify 补缺', '产品分类: 基于采集数据统计'],
+        'lineage-ch03': ['Reddit用户讨论: Apify Reddit Scraper', 'Amazon评论: amazon-product-scraper 优先，Apify Review 补缺', 'TikTok评论: Apify TikTok Scraper'],
         'lineage-ch04': ['行业数据: 市场调研报告(见具体引用)', 'TikTok: Apify actor', '线下渠道: 联网搜索 Walmart/Target/Costco', '竞品动态: Amazon采集+联网搜索', '政策: FDA/FTC官网'],
-        'lineage-ch05': ['市场规模数据: 市场调研报告', '竞品数据: Amazon Apify采集'],
-        'lineage-ch06': ['Google Trends: pytrends/SerpAPI', 'Amazon历史数据: Apify采集'],
+        'lineage-ch05': ['市场规模数据: 市场调研报告', '竞品数据: amazon-product-scraper 优先，Apify 补缺'],
+        'lineage-ch06': ['Google Trends: Apify Google Trends/Serp Actor 优先，必要时 pytrends/SerpAPI 兜底', 'Amazon历史数据: amazon-product-scraper 优先，Apify 补缺'],
         'lineage-ch12': ['1688供应商报价: Apify actor', 'Amazon费率表: sellercentral.amazon.com', 'FBA计算器: Amazon官方工具'],
         'lineage-ch13': ['FDA数据库: fda.gov', 'USPTO: uspto.gov', '认证要求: 行业标准+官网'],
         'lineage-ch14': ['综合前13章所有数据来源'],
@@ -1348,7 +1359,7 @@ function initWordCloud() {{
 function buildDiffSuggestions() {{
     const container = document.getElementById('diff-suggestions');
     if (!diffSuggestions || diffSuggestions.length === 0) {{
-        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">暂无足够数据生成差异化建议，请先完成数据采集。</p>';
+        container.innerHTML = '';
         return;
     }}
     container.innerHTML = diffSuggestions.map((s, i) => `
@@ -1358,6 +1369,7 @@ function buildDiffSuggestions() {{
             <div class="diff-direction">${{s.direction}}</div>
             <div class="diff-detail">${{s.detail}}</div>
             <div class="diff-action">💡 ${{s.action}}</div>
+            <div class="diff-prompt"><strong>文生图提示词：</strong>${{s.image_prompt || s.text_to_image_prompt || ''}}</div>
             <div class="diff-score">🎯 机会评分: ${{s.score}}/100</div>
         </div>
     `).join('');

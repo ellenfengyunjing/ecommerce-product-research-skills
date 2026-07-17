@@ -6,18 +6,16 @@
 
 ---
 
-## [2.1.0] - 2026-05-18
+## [3.5.0] - 2026-07-17
 
-### 🆕 新增功能
+### 采集与交付
 
-- **1688 供应商成本采集**: 在选品调研流程中加入 Apify 1688/Alibaba 供应商数据，用于获取国内供应商报价、MOQ、成交量、供应商年限、评分和复购率等信息
-- **供应链成本校准**: 利润模型优先使用 1688 中位供应商成本，并保留低/中/高成本敏感性分析
-- **供应链验证报告段落**: 报告结构新增“1688 供应商成本与供应链验证”，要求保留商品链接、采集时间和成本假设
-
-### 📚 文档
-
-- 更新中英文 README，明确 Amazon + 1688 + TikTok + 市场报告的多源调研流程
-- 更新配置指南，新增 `APIFY_1688_ACTOR_ID`、`SUPPLIER_COST_SOURCE`、`SUPPLIER_KEYWORDS_MAX`、`SUPPLIER_RESULTS_PER_KEYWORD`、`RMB_USD_RATE`
+- Amazon 固定为本地 `amazon-product-scraper` 优先，失败、样本不足或字段缺失时才用 Apify 补采。
+- TikTok、Reddit、1688、Google Trends 和市场报告优先使用 Apify Actor，Web Search/Web Fetch 仅兜底。
+- 增加有效样本量验收门：Amazon ≥50、TikTok ≥50、Reddit ≥20、1688 ≥20。
+- Google Trends 同时交付最近 6 个月数据与趋势截图。
+- 新增全面 Excel 总表：标准化分表、`Data_Lineage` 和「原始字段明细」。
+- 主流程固定先导出 Excel，再生成独立 HTML 深度报告。
 
 ---
 

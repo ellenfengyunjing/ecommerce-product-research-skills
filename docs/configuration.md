@@ -33,15 +33,17 @@ nano .env
 | 变量名 | 必需 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `APIFY_API_TOKEN` | ✅ | - | Apify API Token |
-| `APIFY_1688_ACTOR_ID` | ❌ | - | 1688/Alibaba 供应商采集 Actor ID；需要准确供应商成本时推荐配置 |
-| `SUPPLIER_COST_SOURCE` | ❌ | 1688 | 供应商成本数据源 |
-| `SUPPLIER_KEYWORDS_MAX` | ❌ | 8 | 每个品类最多生成的 1688 中文搜索关键词数量 |
-| `SUPPLIER_RESULTS_PER_KEYWORD` | ❌ | 20 | 每个 1688 关键词采集的商品/供应商数量 |
-| `RMB_USD_RATE` | ❌ | auto | 人民币到美元汇率；`auto` 表示由运行时自动获取或使用默认汇率 |
 | `DEFAULT_MARKET` | ❌ | US | 默认市场 |
-| `OUTPUT_FORMAT` | ❌ | markdown | 报告格式 |
+| `OUTPUT_FORMAT` | ❌ | html | 报告格式 |
 | `OUTPUT_DIR` | ❌ | ./output | 输出目录 |
 | `MAX_PRODUCTS` | ❌ | 100 | 最大采集数量 |
+| `MIN_AMAZON_PRODUCTS` | ❌ | 50 | Amazon 去重后有效商品硬下限 |
+| `DEFAULT_TIKTOK_ITEMS` | ❌ | 50 | TikTok 默认视频数 |
+| `MIN_TIKTOK_ITEMS` | ❌ | 50 | TikTok 去重视频硬下限 |
+| `MIN_REDDIT_ITEMS` | ❌ | 20 | Reddit 可追溯样本下限 |
+| `MIN_SUPPLIERS` | ❌ | 20 | 1688 有效供应商/报价下限 |
+| `TRENDS_MONTHS` | ❌ | 6 | Google Trends 时间窗口 |
+| `TRENDS_SAVE_SCREENSHOT` | ❌ | true | 保存 Google Trends 截图 |
 | `MIN_REVIEW_COUNT` | ❌ | 50 | 最小评论数 |
 | `MIN_PRICE` | ❌ | 10 | 最低价格 (USD) |
 | `MAX_PRICE` | ❌ | 50 | 最高价格 (USD) |
@@ -133,21 +135,8 @@ MARKET_CONFIG = {
 | Actor | 用途 | 链接 |
 |-------|------|------|
 | `junglee/free-amazon-product-scraper` | 亚马逊商品数据 | [查看](https://apify.com/junglee/free-amazon-product-scraper) |
-| 自定义 1688/Alibaba 采集 Actor | 1688 商品报价、MOQ、供应商资质、成交/复购信号 | 在 `.env` 中配置 `APIFY_1688_ACTOR_ID` |
 | `clockworks/tiktok-scraper` | TikTok 数据 | [查看](https://apify.com/clockworks/tiktok-scraper) |
 | `apify/web-scraper` | 通用网页采集 | [查看](https://apify.com/apify/web-scraper) |
-
-### 1688 供应商成本采集
-
-生成选品调研报告、利润模型或供应链评估时，默认会尝试采集对应品类在 1688 的供应商成本价格。流程如下：
-
-1. 根据 Amazon 类目、竞品标题、五点描述和核心卖点生成 3-8 个中文 1688 搜索关键词。
-2. 使用 `APIFY_1688_ACTOR_ID` 指定的 Actor 抓取 1688 商品和供应商数据。
-3. 标准化商品标题、价格区间、MOQ、成交量、供应商年限、评分、复购率、地区、链接和主图。
-4. 剔除明显异常值、非同类产品和低可信供应商。
-5. 输出低/中/高供应商成本，并将中位成本接入利润模型。
-
-如果没有配置 `APIFY_1688_ACTOR_ID`，报告必须说明未能自动采集供应商成本，不能虚构 1688 报价。
 
 ### 免费 vs 付费
 

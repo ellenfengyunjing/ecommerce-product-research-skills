@@ -25,6 +25,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+from image_prompt_builder import attach_image_prompts
+
 # ============ 配置 ============
 
 OUTPUT_DIR = Path("D:/Ellen工作资料/AI项目/选品报告")
@@ -586,6 +588,12 @@ class SelectionDecisionMatrix:
         # 按总分排序
         results.sort(key=lambda x: x["total_score"], reverse=True)
         
+        results = attach_image_prompts(
+            results,
+            category=market_data.get("category", ""),
+            market=market_data.get("market", ""),
+        )
+
         return {
             "ranked_segments": results,
             "top_picks": results[:3] if len(results) >= 3 else results,
@@ -681,84 +689,33 @@ class DataCollector:
     def collect_amazon_data(self, category: str, market: str = "US") -> Dict:
         """采集亚马逊数据"""
         print(f"\n📦 正在采集亚马逊 {category} 数据...")
-        
-        # 示例数据（实际使用时应调用真实的Apify采集）
+
         amazon_data = {
             "category": category,
             "market": market,
-            "total_products": 150,
-            "total_brands": 45,
-            "avg_price": 22.50,
-            "avg_rating": 4.5,
-            "top_products": self._generate_sample_products(),
-            "price_distribution": {
-                "under_15": 25,
-                "15_25": 45,
-                "25_35": 20,
-                "above_35": 10
-            }
+            "total_products": 0,
+            "total_brands": 0,
+            "avg_price": 0,
+            "avg_rating": 0,
+            "top_products": [],
+            "price_distribution": {}
         }
         
         return amazon_data
     
     def _generate_sample_products(self) -> List[Dict]:
-        """生成示例竞品数据"""
-        import random
-        
-        brands = ["SmartyPants", "Nature's Way", "Garden of Life", "Olly", "Ritual", 
-                  "Care/of", "Hum Nutrition", "LLF", "Yummi Bears", "Nordic Naturals"]
-        
-        return [
-            {
-                "asin": f"B{random.randint(100000000, 999999999)}",
-                "title": f"Kids {random.choice(['Multivitamin', 'Omega-3', 'Immune', 'Probiotic'])} Gummies",
-                "brand": random.choice(brands),
-                "price": round(random.uniform(14.99, 34.99), 2),
-                "rating": round(random.uniform(4.0, 4.9), 1),
-                "reviews": random.randint(1000, 150000),
-                "bsr": random.randint(100, 5000),
-                "is_new": random.choice([True, False, False, False]),  # 约25%新品
-                "launch_date": f"202{random.randint(4, 6)}-0{random.randint(1, 9)}"
-            }
-            for _ in range(100)
-        ]
+        """保留兼容入口，不生成示例竞品数据。"""
+        return []
     
     def collect_tiktok_data(self, category: str, ingredients: Optional[List] = None) -> Dict:
         """采集TikTok流量数据"""
         print(f"\n📱 正在采集 TikTok {category} 流量数据...")
         
-        default_tags = [
-            "#KidsSupplements",
-            "#KidsMultivitamin",
-            "#KidsImmune",
-            "#KidsVitamins",
-            "#KidsHealth"
-        ]
-        
         return {
             "category": category,
-            "tags": [
-                {
-                    "name": tag,
-                    "views": f"{random.randint(10, 50)}亿+",
-                    "videos": f"{random.randint(5, 30)}万+",
-                    "growth": f"+{random.randint(10, 50)}%/月"
-                }
-                for tag in default_tags
-            ],
-            "hot_content_types": [
-                {"type": "软糖开箱", "占比": "28%", "avg_views": "50万+", "转化率": "3.2%"},
-                {"type": "成分科普", "占比": "22%", "avg_views": "80万+", "转化率": "2.8%"},
-                {"type": "儿科医生测评", "占比": "18%", "avg_views": "150万+", "转化率": "5.5%"},
-                {"type": "before/after对比", "占比": "15%", "avg_views": "100万+", "转化率": "4.5%"}
-            ],
-            "content_potential": {
-                "visual_appeal": "高",
-                "before_after": "适合",
-                "stress_relief": "中等",
-                "emotional": "高",
-                "novelty": "高"
-            }
+            "tags": [],
+            "hot_content_types": [],
+            "content_potential": {}
         }
     
     def collect_market_data(self, category: str, market: str = "US") -> Dict:
@@ -768,27 +725,14 @@ class DataCollector:
         return {
             "market": market,
             "category": category,
-            "global_size_2025": "35.9亿美元",
-            "global_forecast": "63.5亿美元（2033）",
-            "global_cagr": "7.6%",
-            "us_size_2025": "124亿美元",
-            "us_cagr": "7.9%",
-            "ingredients": [
-                {"name": "复合维生素", "market_size": "43.4亿美元", "growth_rate": "9.1%", "competition": "高", "recommendation": "引流款"},
-                {"name": "姜黄素（儿童）", "market_size": "3.2亿美元", "growth_rate": "48.9%", "competition": "中低", "recommendation": "主打款"},
-                {"name": "虾青素（儿童）", "market_size": "1.8亿美元", "growth_rate": "32%", "competition": "低", "recommendation": "利润款"},
-                {"name": "儿童蛋白", "market_size": "8.7亿美元", "growth_rate": "14.4%", "competition": "中", "recommendation": "配套款"}
-            ],
-            "consumer_trends": {
-                "form_trend": "软糖CAGR 12.01%（行业3倍）",
-                "function_distribution": "免疫35%/护眼25%/肠胃18%/成长12%",
-                "ingredient_trend": "天然草本28%+"
-            }
+            "global_size_2025": "",
+            "global_forecast": "",
+            "global_cagr": "",
+            "us_size_2025": "",
+            "us_cagr": "",
+            "ingredients": [],
+            "consumer_trends": {}
         }
-
-
-# 需要添加 random 导入
-import random
 
 
 class ProfitModeler:
@@ -800,7 +744,7 @@ class ProfitModeler:
     def calculate_profits(self, products: List[Dict] = None) -> List[Dict]:
         """计算各产品线利润"""
         if products is None:
-            products = self._default_products()
+            return []
         
         results = []
         for p in products:
@@ -911,15 +855,13 @@ class ReportGenerator:
             data.get("amazon_data", {}).get("top_products", [])
         )
         
-        # 痛点分析（模拟数据）
-        sample_reviews = [
-            "Taste is terrible, kids won't take it",
-            "Bottle broke during shipping",
-            "Not effective at all, waste of money",
-            "Great product but hard to open for kids",
-            "Contains artificial colors, disappointed"
-        ] * 20
-        pain_analysis = pain_analyzer.analyze_pain_points(sample_reviews)
+        # 痛点分析：只使用传入的真实评论文本
+        reviews = data.get("reviews") or data.get("amazon_reviews") or []
+        review_texts = [
+            r if isinstance(r, str) else " ".join(str(r.get(k, "")) for k in ("title", "text", "review"))
+            for r in reviews
+        ]
+        pain_analysis = pain_analyzer.analyze_pain_points(review_texts) if review_texts else {"pain_points": [], "categories": {}}
         
         # 虚假蓝海检测
         blue_ocean_result = false_blue_detector.detect_false_blue_ocean(
@@ -932,6 +874,8 @@ class ReportGenerator:
         
         # 选品决策矩阵
         market_data = {
+            "category": data.get("category", ""),
+            "market": data.get("market", ""),
             "segments": keywords[:5]
         }
         decision_matrix = selection_matrix.build_matrix(market_data)
@@ -954,12 +898,13 @@ class ReportGenerator:
 
 ### 🎯 优先进入市场（TOP 3）
 
-| 排名 | 关键词 | 搜索量 | 趋势 | 品牌集中度 | 综合评分 | 建议 |
-|------|--------|--------|------|------------|----------|------|
+| 排名 | 关键词 | 搜索量 | 趋势 | 品牌集中度 | 综合评分 | 建议 | 文生图提示词 |
+|------|--------|--------|------|------------|----------|------|--------------|
 """
 
         for i, seg in enumerate(decision_matrix.get("top_picks", [])[:3], 1):
-            content += f"| {i} | {seg['keyword']} | {seg['search_volume']} | {seg['trend']} | {seg.get('competition', 'N/A')} | {seg['total_score']} | {seg['recommendation']} |\n"
+            competition = seg.get("competition", "")
+            content += f"| {i} | {seg['keyword']} | {seg['search_volume']} | {seg['trend']} | {competition} | {seg['total_score']} | {seg['recommendation']} | {seg.get('image_prompt', '')} |\n"
 
         content += f"""
 ### ⚠️ 虚假蓝海识别结果
@@ -1184,12 +1129,12 @@ class ReportGenerator:
 
 ### 7.1 各细分市场综合排名
 
-| 排名 | 关键词 | 产品类型 | 核心优势 | 风险 | 建议 |
-|------|--------|----------|----------|------|------|
+| 排名 | 关键词 | 产品类型 | 核心优势 | 风险 | 建议 | 文生图提示词 |
+|------|--------|----------|----------|------|------|--------------|
 """
 
         for i, seg in enumerate(decision_matrix.get("ranked_segments", [])[:5], 1):
-            content += f"| {i} | {seg['keyword']} | {seg.get('product_type', '待定')} | | | {seg['recommendation']} |\n"
+            content += f"| {i} | {seg['keyword']} | {seg.get('product_type', '待定')} | | | {seg['recommendation']} | {seg.get('image_prompt', '')} |\n"
 
         content += """
 ### 7.2 选品决策检查清单

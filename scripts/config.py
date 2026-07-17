@@ -56,6 +56,7 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "./output")
 COLLECTION_CONFIG = {
     # 基础参数
     "max_products": int(os.getenv("MAX_PRODUCTS", "100")),
+    "min_amazon_products": int(os.getenv("MIN_AMAZON_PRODUCTS", "50")),
     "min_review_count": int(os.getenv("MIN_REVIEW_COUNT", "50")),
     "min_rating": float(os.getenv("MIN_RATING", "4.0")),
 
@@ -104,8 +105,8 @@ COLLECTION_CONFIG = {
         "tiktok_scraper": {
             "id": "clockworks/tiktok-scraper",
             "status": "verified",
-            "note": "使用 hashtags 参数",
-            "input_params": ["hashtags", "resultsPerPage", "proxyConfiguration"],
+            "note": "使用 searchQueries 采集视频级原始数据",
+            "input_params": ["searchQueries", "searchSection", "resultsPerPage", "proxyConfiguration"],
         },
         "reddit_scraper": {
             "id": "trudax/reddit-scraper",
@@ -137,7 +138,8 @@ TIKTOK_CONFIG = {
     "hashtags": os.getenv("TIKTOK_HASHTAGS", "").split(",") if os.getenv("TIKTOK_HASHTAGS") else [],
 
     # 采集数量
-    "max_videos": 50,
+    "max_videos": int(os.getenv("DEFAULT_TIKTOK_ITEMS", "50")),
+    "min_videos": int(os.getenv("MIN_TIKTOK_ITEMS", "50")),
     "max_creators": 20,
 
     # 内容类型
@@ -180,7 +182,8 @@ PROFIT_CONFIG = {
 
 REDDIT_CONFIG = {
     "enabled": os.getenv("REDDIT_ENABLED", "true").lower() == "true",
-    "max_posts": 100,
+    "min_posts": int(os.getenv("MIN_REDDIT_ITEMS", "20")),
+    "max_posts": int(os.getenv("MAX_REDDIT_ITEMS", "100")),
     "default_subreddits": [
         "AmazonReviews",
         "FulfillmentByAmazon",
@@ -205,9 +208,43 @@ REDDIT_CONFIG = {
 TRENDS_CONFIG = {
     "enabled": os.getenv("TRENDS_ENABLED", "true").lower() == "true",
     "timeframe": "today 5-y",
+    "timeframe_months": int(os.getenv("TRENDS_MONTHS", "6")),  # 默认采集约半年趋势
+    "save_screenshot": os.getenv("TRENDS_SAVE_SCREENSHOT", "true").lower() == "true",
     "geo": "",  # 自动根据市场设置
     "category": 0,  # All categories
     "max_keywords": 5,
+}
+
+# ============================================================
+# 各平台采集额度配置 (用户要求)
+# ============================================================
+
+COLLECTION_QUOTAS = {
+    "amazon": {
+        "max_products": int(os.getenv("MAX_PRODUCTS", "100")),   # 默认 100 条商品
+        "min_products": int(os.getenv("MIN_AMAZON_PRODUCTS", "50")),
+        "min_negative_reviews_per_category": int(os.getenv("MIN_NEG_REVIEWS", "5")),  # 每个品类至少 5-10 条差评
+        "max_negative_reviews_per_product": int(os.getenv("MAX_NEG_PER_PRODUCT", "10")),
+        "target_products_for_reviews": 20,
+    },
+    "supplier_1688": {
+        "min_suppliers": int(os.getenv("MIN_SUPPLIERS", "20")),  # 至少 20 个供应商
+        "max_items": int(os.getenv("MAX_SUPPLIERS", "30")),
+    },
+    "tiktok": {
+        "default_items": int(os.getenv("DEFAULT_TIKTOK_ITEMS", "50")),
+        "min_items": int(os.getenv("MIN_TIKTOK_ITEMS", "50")),
+        "include_shop_sales": True,    # 额外采集 TikTok Shop 品类销量
+    },
+    "reddit": {
+        "min_posts": int(os.getenv("MIN_REDDIT_ITEMS", "20")),
+        "max_posts": 100,
+        "require_real_posts": True,    # 必须是真实 Reddit 帖子（含 url）
+    },
+    "google_trends": {
+        "timeframe_months": int(os.getenv("TRENDS_MONTHS", "6")),
+        "save_screenshot": os.getenv("TRENDS_SAVE_SCREENSHOT", "true").lower() == "true",
+    },
 }
 
 # ============================================================
@@ -510,13 +547,13 @@ DATA_LINEAGE_CONFIG = {
         "data_scope",              # 数据范围（采集条数/时间跨度等）
     ],
     "data_source_mapping": {
-        "amazon_products": "Apify Amazon (junglee/free-amazon-product-scraper)",
-        "amazon_reviews": "Apify Amazon Reviews (junglee/amazon-reviews-scraper)",
+        "amazon_products": "amazon-product-scraper 优先；Apify Amazon 补缺",
+        "amazon_reviews": "amazon-product-scraper Review 优先；Apify Amazon Reviews 补缺",
         "tiktok_data": "Apify TikTok (clockworks/tiktok-scraper)",
-        "reddit_data": "Reddit (Web Search 补充)",
-        "1688_supplier": "1688 (Web Search 补充)",
+        "reddit_data": "Apify Reddit Actor 优先；Web Search 仅兜底",
+        "1688_supplier": "1688 Apify Actor 优先；Web Search 仅兜底",
         "market_report": "行业报告 (Grand View Research / Mordor Intelligence / TBRC 等)",
-        "google_trends": "Google Trends (pytrends, 中国网络受限)",
+        "google_trends": "Apify Google Trends/Serp Actor 优先；Web Search/Web Fetch 仅兜底",
         "web_search": "联网搜索验证",
         "fda_website": "FDA官网",
     },
@@ -643,6 +680,9 @@ CONFIG = {
 
     # Google Trends
     "trends": TRENDS_CONFIG,
+
+    # 采集额度
+    "quotas": COLLECTION_QUOTAS,
 
     # 差评分析
     "review_analysis": REVIEW_ANALYSIS_CONFIG,

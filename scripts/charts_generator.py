@@ -22,6 +22,8 @@ from collections import Counter
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
 
+from image_prompt_builder import attach_image_prompts
+
 
 # ============================================================
 # 配色方案
@@ -74,7 +76,7 @@ class ChartsGenerator:
 
     def generate_all_charts(self) -> Dict[str, dict]:
         """生成所有图表数据结构"""
-        return {
+        charts = {
             # Google Trends
             "google_trends": self.generate_google_trends_chart(),
             # TikTok 品类分布
@@ -99,6 +101,7 @@ class ChartsGenerator:
             # 供应商
             "supplier_comparison": self.generate_supplier_comparison(),
         }
+        return {name: chart for name, chart in charts.items() if chart}
 
     # ============================================================
     # Google Trends 折线图
@@ -108,9 +111,8 @@ class ChartsGenerator:
         """生成 Google Trends 关键词趋势折线图"""
         trends = self.google_trends
 
-        # 模拟数据结构（实际应从 API 获取）
         if not trends or not trends.get("keywords"):
-            trends = self._mock_google_trends()
+            return {}
 
         keywords_data = trends.get("keywords", {})
         timeline = trends.get("timeline", [])
@@ -119,7 +121,7 @@ class ChartsGenerator:
         for i, (keyword, values) in enumerate(keywords_data.items()):
             datasets.append({
                 "label": keyword,
-                "data": values if values else self._generate_mock_timeline(timeline),
+                "data": values,
                 "borderColor": CHART_COLORS["primary"][i % len(CHART_COLORS["primary"])],
                 "backgroundColor": "transparent",
                 "borderWidth": 2,
@@ -133,7 +135,7 @@ class ChartsGenerator:
             "type": "line",
             "title": "Google Trends 关键词搜索趋势",
             "subtitle": f"{self.metadata.get('category', '')} - 近5年搜索热度变化",
-            "labels": timeline or self._mock_timeline_labels(),
+            "labels": timeline,
             "datasets": datasets,
             "options": {
                 "responsive": True,
@@ -159,7 +161,7 @@ class ChartsGenerator:
         tiktok = self.tiktok_data
 
         if not tiktok:
-            tiktok = self._mock_tiktok_data()
+            return {}
 
         # 按播放量排序取 Top 10
         sorted_tags = sorted(tiktok, key=lambda x: x.get("views", 0), reverse=True)[:10]
@@ -201,13 +203,7 @@ class ChartsGenerator:
         content_types = self.analysis.get("tiktok", {}).get("content_types", {})
 
         if not content_types:
-            content_types = {
-                "产品评测": 35,
-                "开箱视频": 20,
-                "使用教程": 25,
-                "对比测评": 10,
-                "生活场景": 10
-            }
+            return {}
 
         return {
             "type": "doughnut",
@@ -238,7 +234,7 @@ class ChartsGenerator:
         products = self.amazon_data
 
         if not products:
-            products = self._mock_amazon_data()
+            return {}
 
         # 按品牌分组
         brand_groups = {}
@@ -326,6 +322,8 @@ class ChartsGenerator:
                 brands[brand] = brands.get(brand, 0) + 1
             sorted_brands = sorted(brands.items(), key=lambda x: x[1], reverse=True)[:10]
             brand_shares = {k: v for k, v in sorted_brands}
+        if not brand_shares:
+            return {}
 
         return {
             "type": "bar",
@@ -349,7 +347,7 @@ class ChartsGenerator:
         prices = [p.get("price", 0) for p in self.amazon_data if p.get("price")]
 
         if not prices:
-            prices = self._mock_price_data()
+            return {}
 
         # 按 $5 区间分组
         bins = {}
@@ -388,7 +386,7 @@ class ChartsGenerator:
         pain_points = review_analysis.get("pain_points", [])
 
         if not pain_points:
-            pain_points = self._mock_pain_points()
+            return {}
 
         # wordcloud2.js 格式: [["word", weight], ...]
         word_list = [[pp["word"], pp["weight"]] for pp in pain_points[:80]]
@@ -416,13 +414,7 @@ class ChartsGenerator:
         categories = review_analysis.get("pain_categories", {})
 
         if not categories:
-            categories = {
-                "产品质量": 30,
-                "功能问题": 25,
-                "包装问题": 15,
-                "服务问题": 18,
-                "期望落差": 12
-            }
+            return {}
 
         return {
             "type": "pie",
@@ -450,7 +442,7 @@ class ChartsGenerator:
         pain_points = self.review_analysis.get("pain_points", [])
 
         if not pain_points:
-            pain_points = self._mock_pain_points()
+            return {}
 
         top10 = sorted(pain_points, key=lambda x: x.get("weight", 0), reverse=True)[:10]
 
@@ -488,7 +480,7 @@ class ChartsGenerator:
         sentiment = reddit.get("sentiment", {})
 
         if not sentiment:
-            sentiment = {"正面": 45, "中性": 30, "负面": 25}
+            return {}
 
         return {
             "type": "doughnut",
@@ -518,16 +510,7 @@ class ChartsGenerator:
         topics = reddit.get("top_topics", {})
 
         if not topics:
-            topics = {
-                "产品质量对比": 85,
-                "使用体验分享": 72,
-                "性价比讨论": 65,
-                "品牌推荐": 58,
-                "购买建议": 50,
-                "售后吐槽": 42,
-                "新品期待": 35,
-                "使用技巧": 28,
-            }
+            return {}
 
         sorted_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)
 
@@ -562,14 +545,7 @@ class ChartsGenerator:
         scores = self.analysis.get("market", {}).get("scores", {})
 
         if not scores:
-            scores = {
-                "搜索量": 80,
-                "品牌分散度": 65,
-                "利润率": 72,
-                "TikTok热度": 55,
-                "供应链稳定": 78,
-                "差评可改进": 85,
-            }
+            return {}
 
         return {
             "type": "radar",
@@ -615,7 +591,7 @@ class ChartsGenerator:
         cost_structure = profit.get("cost_structure", {})
 
         if not cost_structure:
-            cost_structure = self._mock_cost_structure()
+            return {}
 
         return {
             "type": "bar",
@@ -648,12 +624,7 @@ class ChartsGenerator:
         tiers = self.analysis.get("profit", {}).get("pricing_tiers", [])
 
         if not tiers:
-            tiers = [
-                {"name": "引流款", "price": 14.99, "cost": 9.50, "profit": 5.49},
-                {"name": "主打款", "price": 22.99, "cost": 12.80, "profit": 10.19},
-                {"name": "利润款", "price": 29.99, "cost": 14.20, "profit": 15.79},
-                {"name": "高端款", "price": 39.99, "cost": 18.50, "profit": 21.49},
-            ]
+            return {}
 
         return {
             "type": "bar",
@@ -693,7 +664,7 @@ class ChartsGenerator:
         suppliers = self.supplier_data.get("suppliers", [])
 
         if not suppliers:
-            suppliers = self._mock_supplier_data()
+            return {}
 
         labels = [s.get("name", f"供应商{i}") for i, s in enumerate(suppliers)]
         costs = [s.get("unit_cost", 0) for s in suppliers]
@@ -727,127 +698,6 @@ class ChartsGenerator:
 
     # ============================================================
     # Mock 数据生成器
-    # ============================================================
-
-    def _mock_google_trends(self) -> dict:
-        """模拟 Google Trends 数据"""
-        keywords_str = self.metadata.get("keywords", [self.metadata.get("category", "products")])
-        if isinstance(keywords_str, str):
-            keywords_str = [keywords_str]
-        if isinstance(keywords_str, list) and len(keywords_str) > 0 and isinstance(keywords_str[0], dict):
-            keywords_str = [self.metadata.get("category", "products")]
-
-        keywords_data = {}
-        for i, kw in enumerate(keywords_str[:5]):
-            if isinstance(kw, str) and len(kw) < 40:
-                keywords_data[kw] = []
-            else:
-                keywords_data[f"keyword_{i+1}"] = []
-
-        return {
-            "keywords": keywords_data,
-            "timeline": self._mock_timeline_labels(),
-        }
-
-    def _mock_timeline_labels(self) -> List[str]:
-        """生成 5年月度时间轴标签"""
-        labels = []
-        for year in range(2022, 2027):
-            for month in range(1, 13):
-                labels.append(f"{year}-{month:02d}")
-        return labels
-
-    def _generate_mock_timeline(self, timeline: List[str]) -> List[float]:
-        """生成模拟趋势数据"""
-        import random
-        random.seed(hash(str(timeline)) % 10000)
-        base = 50
-        trend = 0
-        values = []
-        for _ in timeline:
-            trend += random.uniform(-0.5, 1.5)
-            noise = random.uniform(-5, 5)
-            values.append(max(0, base + trend + noise))
-        return values
-
-    def _mock_tiktok_data(self) -> List[dict]:
-        return [
-            {"hashtag": f"#{self.metadata.get('category', 'product').replace(' ', '')}", "views": 52000000},
-            {"hashtag": "#bestseller2026", "views": 38000000},
-            {"hashtag": "#productreview", "views": 25000000},
-            {"hashtag": "#musthave", "views": 18000000},
-            {"hashtag": "#amazonfinds", "views": 15000000},
-            {"hashtag": "#unboxing", "views": 12000000},
-            {"hashtag": "#worthit", "views": 9000000},
-            {"hashtag": "#tryonhaul", "views": 7500000},
-            {"hashtag": "#beforeandafter", "views": 6000000},
-            {"hashtag": "#budgetfriendly", "views": 5000000},
-        ]
-
-    def _mock_amazon_data(self) -> List[dict]:
-        import random
-        random.seed(42)
-        brands = ["BrandA", "BrandB", "BrandC", "BrandD"]
-        products = []
-        for i in range(40):
-            products.append({
-                "title": f"Product {i+1} - Premium Quality Item",
-                "brand": brands[i % 4],
-                "price": round(random.uniform(8, 45), 2),
-                "rating": round(random.uniform(3.0, 5.0), 1),
-                "review_count": random.randint(50, 5000),
-            })
-        return products
-
-    def _mock_price_data(self) -> List[float]:
-        import random
-        random.seed(42)
-        return [round(random.uniform(5, 50), 2) for _ in range(100)]
-
-    def _mock_pain_points(self) -> List[dict]:
-        return [
-            {"word": "broke", "weight": 42},
-            {"word": "poor quality", "weight": 38},
-            {"word": "not as described", "weight": 35},
-            {"word": "cheap material", "weight": 32},
-            {"word": "doesn't work", "weight": 30},
-            {"word": "waste of money", "weight": 28},
-            {"word": "too small", "weight": 25},
-            {"word": "damaged", "weight": 22},
-            {"word": "leaking", "weight": 20},
-            {"word": "hard to use", "weight": 18},
-            {"word": "bad smell", "weight": 16},
-            {"word": "disappointed", "weight": 15},
-            {"word": "returned", "weight": 14},
-            {"word": "missing parts", "weight": 12},
-            {"word": "uncomfortable", "weight": 10},
-            {"word": "flimsy", "weight": 9},
-            {"word": "stopped working", "weight": 8},
-            {"word": "overpriced", "weight": 7},
-            {"word": "dangerous", "weight": 6},
-            {"word": "incorrect size", "weight": 5},
-        ]
-
-    def _mock_cost_structure(self) -> dict:
-        return {
-            "产品成本": 6.50,
-            "平台佣金": 3.75,
-            "FBA费用": 3.50,
-            "广告费": 5.00,
-            "退款损耗": 0.75,
-            "汇损": 0.25,
-            "净利润": 5.25,
-        }
-
-    def _mock_supplier_data(self) -> List[dict]:
-        return [
-            {"name": "供应商A", "unit_cost": 6.80, "moq": 500},
-            {"name": "供应商B", "unit_cost": 5.50, "moq": 2000},
-            {"name": "供应商C", "unit_cost": 7.20, "moq": 300},
-            {"name": "供应商D", "unit_cost": 6.00, "moq": 1000},
-            {"name": "供应商E", "unit_cost": 8.50, "moq": 100},
-        ]
-
     # ============================================================
     # 差异化建议生成
     # ============================================================
@@ -953,7 +803,12 @@ class ChartsGenerator:
                 },
             ]
 
-        return sorted(suggestions, key=lambda x: x["score"], reverse=True)
+        suggestions = sorted(suggestions, key=lambda x: x["score"], reverse=True)
+        return attach_image_prompts(
+            suggestions,
+            category=self.metadata.get("category", ""),
+            market=self.metadata.get("market", ""),
+        )
 
 
 # ============================================================

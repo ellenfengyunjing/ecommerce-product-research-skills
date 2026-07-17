@@ -27,6 +27,7 @@ if sys.platform == "win32":
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -69,6 +70,7 @@ class ProductResearchPipeline:
             },
             "amazon": [],
             "tiktok": [],
+            "tiktok_shop": [],
             "review_analysis": {},
             "reddit": {},
             "google_trends": {},
@@ -90,6 +92,25 @@ class ProductResearchPipeline:
 
         # Step 1: 全量数据采集 (7大数据源)
         self._collect_all_data()
+
+        # v3.4: 落盘原始采集数据 (产物一 Excel 的唯一可信数据源)
+        raw_path = self.output_dir / "raw_data.json"
+        try:
+            with open(raw_path, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, ensure_ascii=False, indent=2, default=str)
+            print(f"📦 原始数据已落盘: {raw_path}")
+        except Exception as e:
+            print(f"⚠️ raw_data.json 落盘失败: {e}")
+
+        # 产物一：先导出全面 Excel 总表，再进入 HTML 分析。
+        try:
+            from excel_exporter import build_workbook
+            safe_category = re.sub(r'[<>:"/\\|?*]+', "_", self.category).strip() or "category"
+            excel_path = self.output_dir / f"{self.market}_{safe_category}_采集数据.xlsx"
+            build_workbook(self.data).save(excel_path)
+            print(f"📊 Excel 采集总表已生成: {excel_path}")
+        except Exception as e:
+            print(f"⚠️ Excel 采集总表生成失败: {e}")
 
         # Step 2: 数据分析
         self._analyze_data()
@@ -114,12 +135,13 @@ class ProductResearchPipeline:
         lineage = self.data["metadata"]["data_lineage"]
         collect_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 1. Amazon 商品数据 (Apify: junglee/free-amazon-product-scraper)
+        # 1. Amazon 商品数据（本地 amazon-product-scraper 优先，Apify 补缺）
         print("   ├─ [1/7] 采集 Amazon 商品数据...")
         self.data["amazon"] = collector.fetch_amazon_products(self.keywords)
         count = len(self.data["amazon"])
+        amazon_sources = sorted({p.get("source", "unknown") for p in self.data["amazon"]})
         lineage["amazon_products"] = {
-            "source": "Apify Amazon Product Scraper (junglee/free-amazon-product-scraper)",
+            "source": " + ".join(amazon_sources),
             "count": count,
             "time": collect_time,
             "status": "success" if count > 0 else "no_data (由 Web Search 补充)",
@@ -132,7 +154,7 @@ class ProductResearchPipeline:
         self.data["review_analysis"] = collector.fetch_negative_reviews(asins)
         review_count = self.data["review_analysis"].get("total_reviews", 0)
         lineage["amazon_reviews"] = {
-            "source": "Apify Amazon Review Scraper (junglee/amazon-reviews-scraper)",
+            "source": "amazon-product-scraper Review Mode first; Apify Amazon Reviews for item-level field gaps",
             "count": review_count,
             "asins": len(asins),
             "time": collect_time,
@@ -150,7 +172,15 @@ class ProductResearchPipeline:
             "time": collect_time,
             "status": "success" if tiktok_count > 0 else "no_data (由 Web Search 补充)",
         }
-        print(f"   │   └─ {tiktok_count} 个标签" if tiktok_count > 0 else "   │   └─ 由 Web Search 补充")
+        print(f"   │   └─ {tiktok_count} 条视频" if tiktok_count > 0 else "   │   └─ 由 Web Search 补充")
+
+        self.data["tiktok_shop"] = collector.fetch_tiktok_shop_sales(self.keywords)
+        lineage["tiktok_shop"] = {
+            "source": "Apify TikTok Shop Actor",
+            "count": len(self.data["tiktok_shop"]),
+            "time": collect_time,
+            "status": "success" if self.data["tiktok_shop"] else "no_data",
+        }
 
         # 4. Reddit 数据 (Apify: 无免费Actor → Web Search)
         print("   ├─ [4/7] 采集 Reddit 用户讨论...")
@@ -172,12 +202,16 @@ class ProductResearchPipeline:
                 self.data["google_trends"] = collector.fetch_google_trends(self.keywords)
                 kw_count = len(self.data["google_trends"].get("keywords", {}))
                 lineage["google_trends"] = {
-                    "source": "Google Trends (pytrends)",
+                    "source": self.data["google_trends"].get("source", "Google Trends Apify Actor"),
                     "keywords": kw_count,
                     "time": collect_time,
-                    "status": "success" if kw_count > 0 else "no_data (中国网络受限)",
+                    "run_id": self.data["google_trends"].get("run_id", ""),
+                    "dataset_id": self.data["google_trends"].get("dataset_id", ""),
+                    "screenshot_url": self.data["google_trends"].get("screenshot_url", ""),
+                    "screenshot_path": self.data["google_trends"].get("screenshot_path", ""),
+                    "status": "success" if kw_count > 0 else "no_data (Web Search/Web Fetch fallback required)",
                 }
-                print(f"   │   └─ {kw_count} 个关键词趋势" if kw_count > 0 else "   │   └─ 中国网络受限")
+                print(f"   │   └─ {kw_count} 个关键词趋势" if kw_count > 0 else "   │   └─ 需 Web Search/Web Fetch 兜底")
             except Exception as e:
                 print(f"   │   └─ ⚠️ 跳过 (无法连接): {str(e)[:80]}")
                 self.data["google_trends"] = {"keywords": {}, "error": str(e)}
@@ -333,7 +367,11 @@ v3.0 新维度:
     config["output_format"] = args.output_format
     if args.output_dir:
         config["output_dir"] = str(args.output_dir)
-    config["max_products"] = args.max_products
+    config["collection"] = dict(config.get("collection", {}))
+    config["collection"]["max_products"] = max(50, args.max_products)
+    config["collection"]["min_amazon_products"] = max(
+        50, int(config["collection"].get("min_amazon_products", 50))
+    )
     config["debug"] = args.debug
 
     # 数据源跳过配置
