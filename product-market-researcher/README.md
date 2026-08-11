@@ -1,252 +1,152 @@
-# 🛒 Amazon Product Research Toolkit v3.5
+# product-market-researcher
 
-> **AI驱动的亚马逊精细化选品调研工具链** —— 输入市场+类目，自动完成全链路数据采集与分析
+这是这套 skills 的主 skill。
 
-[English](README_en.md) | 中文
+它的目标很简单：你只要输入“市场 + 类目”，它就会帮你做完整的选品调研，并输出可落地的 Excel 总表和 HTML 报告。
 
----
+## 你可以把它理解成什么
 
-## ✨ 核心特性
+它不是单纯的抓取脚本，而是一个“调研总控器”：
 
-- **🚀 一键启动**：只需输入「市场 + 类目」，自动完成采集、分析与交付
-- **📊 固定采集路由**：Amazon 本地脚本优先、Apify 补缺；TikTok / Reddit / 1688 / Google Trends / 市场报告 Apify 优先
-- **🧮 样本量硬下限**：Amazon ≥50、TikTok 去重视频 ≥50、Reddit ≥20、1688 有效报价 ≥20
-- **📈 Google Trends 双交付**：保存最近 6 个月时间序列和趋势截图
-- **🧠 智能分析**：基于精细化选品方法论，自动识别蓝海市场
-- **💰 利润建模**：自动计算毛利率、净利率、成本结构
-- **📗 双产物**：先生成含标准化分表、原始字段和 Data Lineage 的 Excel 总表，再生成独立 HTML 深度报告
+1. 先判断该抓什么数据
+2. 再按平台选择合适的子 skill
+3. 把采集到的真实数据统一整理成 Excel
+4. 再基于 Excel 生成 HTML 可视化报告
 
----
+所以，平时你大多数时候只需要用这个主 skill。
 
-## 🔄 选品方法论
+## 什么时候用主 skill
 
-本工具基于 **AI时代跨境电商精细化选品方法论**：
+适合以下场景：
 
-```
-拆市场 → 找需求 → 分析竞争 → 判断利润 → 内容传播 → 供应链 → 小量测试 → 放大优势
-```
+- 你想做一整套选品调研
+- 你只给得出市场和类目，不知道该从哪里开始
+- 你需要同时看 Amazon、TikTok、Reddit、1688、Google Trends、市场报告
+- 你想要最后直接拿 Excel + HTML 报告
 
-### 选品决策标准
+示例：
 
-| 指标 | 标准 | 说明 |
-|------|------|------|
-| 搜索量 | 2-10万/月 | 有需求但不过度竞争 |
-| 品牌集中度 | <30% | 市场分散，机会均等 |
-| CPC | <$1 | 广告成本可控 |
-| 利润率 | >30% | 可持续盈利 |
+- `帮我调研美国市场的 kids supplements`
+- `请分析英国市场的 probiotic gummies 选品机会`
+- `帮我做一个美国 hair clips 的完整市场调研`
 
----
+## 主 skill 会做什么
 
-## 🏗️ 架构
+### 1. 解析你的需求
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    amazon-product-researcher                      │
-│                         (主入口 Skill)                            │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
-        │                       │                       │
-        ▼                       ▼                       ▼
-┌───────────────────┐  ┌──────────────────┐  ┌─────────────────┐
-│   数据采集层      │  │   分析层          │  │   输出层        │
-├───────────────────┤  ├───────────────────┤  ├─────────────────┤
-│                  │  │                  │  │                 │
-│ amazon-product-  │  │ profit-model-    │  │ report-         │
-│ scraper          │  │ builder          │  │ generator       │
-│ 亚马逊商品采集    │  │ 利润模型构建      │  │ 报告生成        │
-│                  │  │                  │  │                 │
-│ apify-amazon-    │  │ market-          │  │ tiktok-         │
-│ scraper          │  │ intelligence     │  │ analytics       │
-│ Apify API采集     │  │ 市场情报分析      │  │ TikTok流量分析  │
-│                  │  │                  │  │                 │
-│ apify-market-    │  │                  │  │                 │
-│ scraper          │  │                  │  │                 │
-│ 市场数据采集      │  │                  │  │                 │
-│                  │  │                  │  │                 │
-│ apify-tiktok-    │  │                  │  │                 │
-│ scraper          │  │                  │  │                 │
-│ TikTok数据采集    │  │                  │  │                 │
-│                  │  │                  │  │                 │
-└───────────────────┘  └──────────────────┘  └─────────────────┘
-```
+它会从你的输入里提取：
 
----
+- 市场
+- 类目
+- 核心关键词
+- 是否需要供应商、趋势、评论、利润模型、报告
 
-## 🚀 快速开始
+### 2. 按规则采集数据
 
-### 1. 安装依赖
+默认采集逻辑是：
 
-```bash
-# 克隆项目
-git clone https://github.com/ellenfengyunjing/ecommerce-product-research-skills.git
-cd ecommerce-product-research-skills
+- Amazon：先用 `amazon-product-scraper`
+- Amazon 字段缺失/报错：再用 `apify-amazon-scraper`
+- 其他平台：优先用 Apify 对应 Actor
+- Apify 不可用时：再用 Web Search / Web Fetch 兜底
 
-# 安装 Python 依赖
-pip install -r requirements.txt
+### 3. 统一成 Excel 总表
 
-# 配置 API Key (见下方)
-cp .env.example .env
-```
+主 skill 会把所有真实可用的数据先写入 Excel 总表。
 
-### 2. 配置 API Key
+这张表是后面分析和报告的唯一数据底座。
 
-编辑 `.env` 文件：
+### 4. 生成 HTML 报告
 
-```bash
-# Apify API (用于数据采集)
-APIFY_API_TOKEN=your-apify-token-here
+然后再基于 Excel 和分析结果生成 HTML 可视化报告。
 
-# 平台 Actor（按 Apify 账号实际可用 Actor 填写）
-APIFY_1688_ACTOR_ID=your-1688-actor-id
-APIFY_REDDIT_ACTOR_ID=your-reddit-actor-id
-APIFY_GOOGLE_TRENDS_ACTOR_ID=your-google-trends-actor-id
+如果某些数据没抓到，相关章节就不显示，不会硬编。
 
-# 默认与最低采集量
-MAX_PRODUCTS=100
-MIN_AMAZON_PRODUCTS=50
-DEFAULT_TIKTOK_ITEMS=50
-MIN_TIKTOK_ITEMS=50
-MIN_REDDIT_ITEMS=20
-MIN_SUPPLIERS=20
-TRENDS_MONTHS=6
-TRENDS_SAVE_SCREENSHOT=true
-```
+## 主 skill 和子 skills 的分工
 
-> 📖 详细配置说明：[配置指南](docs/configuration.md)
+| Skill | 作用 |
+| --- | --- |
+| `product-market-researcher` | 总控全流程，适合完整调研 |
+| `amazon-product-scraper` | Amazon 本地抓取，低成本优先 |
+| `apify-amazon-scraper` | Amazon 补缺，字段不够时兜底 |
+| `apify-tiktok-scraper` | TikTok 视频和搜索词采集 |
+| `tiktok-analytics` | TikTok 标签流量和趋势分析 |
+| `apify-market-scraper` | 市场报告和行业公开数据采集 |
+| `market-intelligence` | 行业规模、CAGR、市场洞察分析 |
+| `profit-model-builder` | 成本、毛利、净利、定价模型 |
+| `report-generator` | 把数据整理成最终 HTML 报告 |
 
-### 3. 运行选品调研
+## 输出物
 
-**方式一：WorkBuddy Skill (推荐)**
+默认会产出三类结果：
 
-```
-在 WorkBuddy 中输入：
-"帮我分析美国市场儿童保健品类目的选品机会"
-```
+- Excel 总表：所有可用数据先落表
+- HTML 报告：给人看的分析结果
+- 原始数据：便于复核和二次分析
 
-**方式二：命令行直接运行**
+如果有 Google Trends，还会保存：
+
+- 趋势截图
+- 近 6 个月趋势数据
+
+## 怎么直接运行
+
+在仓库里可以这样跑：
 
 ```bash
-cd skills/amazon-product-researcher/scripts
-python main.py --market US --category "kids supplements" --keywords "children vitamins" "gummy vitamins"
+python scripts/main.py --market US --category "kids supplements"
 ```
 
----
+如果你有更明确的关键词：
 
-## 📁 项目结构
-
-```
-amazon-product-researcher/
-├── README.md                    # 本文件
-├── README_en.md                 # English version
-├── .env.example                 # 环境变量模板
-├── requirements.txt             # Python 依赖
-├── LICENSE                      # MIT 许可证
-│
-├── docs/                        # 文档
-│   ├── configuration.md          # 配置指南
-│   ├── methodolody.md            # 选品方法论详解
-│   ├── faq.md                   # 常见问题
-│   └── changelog.md             # 更新日志
-│
-├── skills/                      # Skill 模块
-│   ├── amazon-product-researcher/      # 主 Skill (入口)
-│   ├── amazon-product-scraper/         # 亚马逊商品采集
-│   ├── apify-amazon-scraper/          # Apify 亚马逊采集
-│   ├── apify-market-scraper/          # 市场数据采集
-│   ├── apify-tiktok-scraper/          # TikTok 数据采集
-│   ├── market-intelligence/            # 市场情报分析
-│   ├── profit-model-builder/           # 利润模型构建
-│   ├── report-generator/               # 报告生成器
-│   └── tiktok-analytics/              # TikTok 流量分析
-│
-├── examples/                    # 示例
-│   ├── sample_report.md          # 报告示例
-│   └── sample_config.json        # 配置示例
-│
-└── output/                      # 输出目录 (自动创建)
-    └── YYYY-MM-DD/              # 按日期分组的报告
+```bash
+python scripts/main.py --market US --category "kids supplements" --keywords "children vitamins" "gummy vitamins"
 ```
 
----
+如果你只是想先试跑，不做正式采集：
 
-## 📊 数据源
-
-| 数据源 | 类型 | 说明 |
-|--------|------|------|
-| Amazon | 商品与差评 | 本地 `amazon-product-scraper` 优先，Apify 定向补缺 |
-| TikTok / TikTok Shop | 视频与销量 | 至少 50 条去重视频，保留视频级指标 |
-| Reddit | 帖子/评论 | 至少 20 条可追溯样本 |
-| 1688 | 供应商与报价 | 至少 20 条有效报价 |
-| Google Trends | 趋势数据 | 最近 6 个月时间序列 + 截图 |
-| Grand View Research | 市场报告 | 市场规模、CAGR |
-| Mordor Intelligence | 行业报告 | 行业趋势、竞争格局 |
-
----
-
-## 🔧 高级配置
-
-### 自定义采集参数
-
-在 `skills/amazon-product-researcher/scripts/config.py` 中配置：
-
-```python
-# 采集参数
-CONFIG = {
-    "max_products": 100,           # 最大采集商品数
-    "min_review_count": 50,        # 最小评论数
-    "price_range": (10, 50),       # 价格区间 (USD)
-    "min_rating": 4.0,             # 最低评分
-    "proxy_enabled": False,        # 是否使用代理
-}
+```bash
+python scripts/main.py --category demo --market US --dry-run
 ```
 
-### 输出格式
+## 配置
 
-支持多种输出格式：
+至少需要：
 
-```python
-OUTPUT_FORMAT = "markdown"  # markdown / pdf / word / html
-```
+- `APIFY_API_TOKEN`
 
----
+如果你要用飞书写入或 TikTok 辅助脚本，还可能需要：
 
-## 🤝 贡献
+- `FEISHU_BASE_TOKEN`
+- `FEISHU_TABLE_ID`
+- `FEISHU_VIEW_ID`
+- `TIKTOK_OUTPUT_DIR`
 
-欢迎提交 Issue 和 Pull Request！
+配置示例见：[`./.env.example`](./.env.example)
 
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
+## 常见使用方式
 
-详见：[贡献指南](CONTRIBUTING.md)
+### 方式一：只用主 skill
 
----
+你只要告诉它：
 
-## 📄 许可证
+> 帮我调研美国市场的 hair clips 选品机会
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+它会自动走完整流程。
 
----
+### 方式二：只用某个子 skill
 
-## 🙏 致谢
+如果你已经知道自己只缺哪一块，就直接用对应子 skill。
 
-- [Apify](https://apify.com/) - 数据采集平台
-- [Selenium](https://www.selenium.dev/) - 浏览器自动化
-- [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) - 网页解析
-- 所有开源贡献者
+例如：
 
----
+- 只想抓 Amazon 竞品：用 `amazon-product-scraper`
+- 只想抓 TikTok 热度：用 `apify-tiktok-scraper`
+- 只想算利润：用 `profit-model-builder`
+- 只想生成报告：用 `report-generator`
 
-## 📬 联系
+## 给新手的一句话建议
 
-- GitHub Issues: [报告 Bug / 请求功能](https://github.com/yourusername/amazon-product-researcher/issues)
-- Email: your.email@example.com
+如果你不知道从哪开始，就直接用 `product-market-researcher`。
 
----
-
-<p align="center">
-  <strong>Made with ❤️ for Amazon Sellers</strong>
-</p>
+如果你已经有目标，只缺某一类数据，就直接找对应子 skill。
