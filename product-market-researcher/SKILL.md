@@ -1,5 +1,5 @@
 ---
-name: amazon-product-researcher
+name: product-market-researcher
 description: |
   亚马逊精细化选品调研报告生成器 | Amazon Product Research Report Generator
 

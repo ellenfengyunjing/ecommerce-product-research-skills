@@ -1,0 +1,11 @@
+{
+  "name": "amazon-product-scraper",
+  "version": "5.0.0",
+  "description": "亚马逊Best Seller Top 100商品数据采集技能，支持真实数据采集、高清图片下载、Excel导出",
+  "author": "WorkBuddy",
+  "updatedAt": "2026-03-24",
+  "slug": "amazon-product-scraper",
+  "entrypoint": "amazon_scraper.py",
+  "pythonVersion": ">=3.8",
+  "dependencies": ["requests", "beautifulsoup4", "openpyxl", "Pillow"]
+}

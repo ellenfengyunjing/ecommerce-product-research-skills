@@ -47,10 +47,6 @@ output/
 *.docx
 *.html
 
-!product-market-researcher/package.json
-!product-market-researcher/package-lock.json
-!amazon-product-scraper/_meta.json
-
 # 保留根目录的文档文件
 !README.md
 !README_en.md

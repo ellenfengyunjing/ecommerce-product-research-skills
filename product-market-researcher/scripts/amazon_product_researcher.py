@@ -29,7 +29,7 @@ from image_prompt_builder import attach_image_prompts
 
 # ============ 配置 ============
 
-OUTPUT_DIR = Path("D:/Ellen工作资料/AI项目/选品报告")
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "output"
 TEMP_DATA_DIR = OUTPUT_DIR / "temp_data"
 
 # API配置

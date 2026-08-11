@@ -1,0 +1,4 @@
+interface:
+  display_name: "选品市场调研"
+  short_description: "基于真实数据的跨平台选品市场调研"
+  default_prompt: "Use $product-market-researcher to research the US market for kids supplements and generate a complete opportunity report."
